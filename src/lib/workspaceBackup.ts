@@ -95,7 +95,7 @@ export const createWorkspaceBackup = async (userId: string): Promise<WorkspaceBa
 
   const fileUrls = await buildFileUrls(tables.crm_files ?? [], warnings)
   return parseWorkspaceBackup({
-    format: 'lumicrm-workspace-backup',
+    format: 'kvartocrm-workspace-backup',
     version: 1,
     exportedAt: new Date().toISOString(),
     sourceUserId: userId,
@@ -113,7 +113,7 @@ export const downloadWorkspaceBackup = async (userId: string) => {
   const anchor = document.createElement('a')
   const date = new Date().toISOString().slice(0, 10)
   anchor.href = url
-  anchor.download = `LumiCRM-backup-${date}.json`
+  anchor.download = `KvartoCRM-backup-${date}.json`
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()

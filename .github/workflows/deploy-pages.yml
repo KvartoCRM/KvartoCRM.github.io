@@ -1,11 +1,11 @@
-name: Deploy LumiCRM to GitHub Pages
+name: Deploy KvartoCRM to GitHub Pages
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
   workflow_run:
-    workflows: [Release LumiCRM applications]
+    workflows: [Release KvartoCRM applications]
     types: [completed]
 
 permissions:
@@ -37,12 +37,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p dist/downloads
-          gh release download \
+          if ! gh release download \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern 'LumiCRM-Windows-Setup.exe' \
-            --pattern 'LumiCRM-Android.apk' \
+            --pattern 'KvartoCRM-Windows-Setup.exe' \
+            --pattern 'KvartoCRM-Android.apk' \
             --dir dist/downloads \
-            --clobber
+            --clobber; then
+            gh release download \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern 'LumiCRM-Windows-Setup.exe' \
+              --pattern 'LumiCRM-Android.apk' \
+              --dir dist/downloads \
+              --clobber
+            mv dist/downloads/LumiCRM-Windows-Setup.exe dist/downloads/KvartoCRM-Windows-Setup.exe
+            mv dist/downloads/LumiCRM-Android.apk dist/downloads/KvartoCRM-Android.apk
+          fi
           gh release download \
             --repo "$GITHUB_REPOSITORY" \
             --pattern 'latest.yml' \
@@ -53,8 +62,8 @@ jobs:
           RELEASE_TIME="$(gh release view --repo "$GITHUB_REPOSITORY" --json publishedAt --jq .publishedAt)"
           RELEASE_VERSION="${RELEASE_TAG#app-v}"
           printf '{"version":"%s","publishedAt":"%s"}\n' "$RELEASE_VERSION" "$RELEASE_TIME" > dist/downloads/version.json
-          test -s dist/downloads/LumiCRM-Windows-Setup.exe
-          test -s dist/downloads/LumiCRM-Android.apk
+          test -s dist/downloads/KvartoCRM-Windows-Setup.exe
+          test -s dist/downloads/KvartoCRM-Android.apk
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

@@ -1,4 +1,4 @@
-# LumiCRM Cloudflare gateway
+# KvartoCRM Cloudflare gateway
 
 Бесплатный шлюз проксирует запросы браузера и приложений к Supabase. Данные и ключи в Cloudflare не сохраняются.
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Eye, EyeOff, KeyRound, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import logoLight from '../assets/logo-light.png'
+import BrandLogo from '../components/BrandLogo'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 
 const SetPasswordPage = () => {
@@ -35,7 +35,7 @@ const SetPasswordPage = () => {
     }
 
     setSuccess(true)
-    setMessage('Пароль сохранён. Открываем LumiCRM…')
+    setMessage('Пароль сохранён. Открываем KvartoCRM…')
     window.setTimeout(() => navigate('/'), 900)
   }
 
@@ -46,13 +46,13 @@ const SetPasswordPage = () => {
       </div>
       <div className="pointer-events-none absolute left-1/2 top-[-20rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-[rgb(var(--lumi-accent-rgb)/0.18)] blur-3xl" />
       <div className="lumi-panel relative w-full max-w-md rounded-3xl border p-7 backdrop-blur sm:p-9">
-        <img src={logoLight} alt="LumiCRM" className="lumi-logo mx-auto h-10 w-auto object-contain" />
+        <BrandLogo className="justify-center" markClassName="h-11 w-11" />
         <div className="mt-6 text-center">
           <div className="lumi-accent-soft mx-auto flex h-12 w-12 items-center justify-center rounded-2xl">
             <KeyRound className="h-6 w-6" />
           </div>
           <h1 className="lumi-text mt-4 text-2xl font-bold">Создайте пароль владельца</h1>
-          <p className="lumi-muted mt-2 text-sm leading-6">Этот пароль будет использоваться для входа в LumiCRM с любого устройства.</p>
+          <p className="lumi-muted mt-2 text-sm leading-6">Этот пароль будет использоваться для входа в KvartoCRM с любого устройства.</p>
         </div>
 
         {message && (

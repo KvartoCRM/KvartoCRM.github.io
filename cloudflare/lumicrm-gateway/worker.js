@@ -52,7 +52,7 @@ export const handleGatewayRequest = async (request, upstreamFetch = fetch) => {
       headers.set('cache-control', 'no-store, no-transform')
       return new Response(request.method === 'HEAD' ? null : bytes, { headers })
     }
-    return new Response(request.method === 'HEAD' ? null : JSON.stringify({ ok: true, service: 'LumiCRM gateway' }), {
+    return new Response(request.method === 'HEAD' ? null : JSON.stringify({ ok: true, service: 'KvartoCRM gateway' }), {
       headers: responseHeaders(request, { 'content-type': 'application/json' }),
     })
   }
@@ -88,7 +88,7 @@ export const handleGatewayRequest = async (request, upstreamFetch = fetch) => {
     }
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
   } catch {
-    return reply('LumiCRM cloud gateway is temporarily unavailable', 502)
+    return reply('KvartoCRM cloud gateway is temporarily unavailable', 502)
   }
 }
 

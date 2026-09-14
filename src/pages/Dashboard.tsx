@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { completeOverviewItem } from '../lib/crm'
 import { syncNativeReminders } from '../lib/nativeReminders'
@@ -30,7 +31,7 @@ import { printCurrentPage } from '../lib/print'
 import { preloadCoreRoutes, preloadRoute } from '../lib/routeLoaders'
 import { desktopNavigationGroups, isNavigationItemActive } from '../lib/navigation'
 import { useCrmOverview } from '../hooks/useCrmOverview'
-import logoLight from '../assets/logo-light.png'
+import BrandLogo from '../components/BrandLogo'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import InstallAppButton from '../components/InstallAppButton'
 import NotificationCenter from '../components/NotificationCenter'
@@ -78,6 +79,7 @@ const Dashboard = ({ children }: DashboardProps) => {
   const [syncRevision, setSyncRevision] = useState(0)
   const [analyticsReady, setAnalyticsReady] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     setMobileMenuOpen(false)
@@ -240,14 +242,14 @@ const Dashboard = ({ children }: DashboardProps) => {
           return (
             <div
               key={stat.label}
-              className="lumi-panel rounded-2xl border p-5 transition-opacity"
+              className="lumi-panel lumi-showcase rounded-2xl border p-5 transition-opacity"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="lumi-muted text-sm">{stat.label}</p>
                   <p className="lumi-text mt-2 text-3xl font-bold">{loading ? '—' : stat.value}</p>
                 </div>
-                <div className={`rounded-2xl bg-gradient-to-br ${stat.color} p-3`}>
+                <div className={`lumi-showcase-icon rounded-2xl bg-gradient-to-br ${stat.color} p-3`}>
                   <Icon className="h-6 w-6 text-white" />
                 </div>
               </div>
@@ -256,7 +258,7 @@ const Dashboard = ({ children }: DashboardProps) => {
         })}
       </div>
 
-      <section className="lumi-panel overflow-hidden rounded-2xl border">
+      <section className="lumi-panel lumi-showcase overflow-hidden rounded-2xl border">
         <div className="lumi-border flex flex-col border-b sm:flex-row">
           {([
             ['sale', 'Купля-продажа'],
@@ -296,7 +298,7 @@ const Dashboard = ({ children }: DashboardProps) => {
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <section className="lumi-panel rounded-2xl border p-6 xl:col-span-2">
+        <section className="lumi-panel lumi-showcase rounded-2xl border p-6 xl:col-span-2">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="lumi-text text-xl font-semibold">Ближайшие дела</h2>
@@ -339,7 +341,7 @@ const Dashboard = ({ children }: DashboardProps) => {
           </div>
         </section>
 
-        <section className="lumi-panel rounded-2xl border p-6">
+        <section className="lumi-panel lumi-showcase rounded-2xl border p-6">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="lumi-text text-xl font-semibold">Новые объекты</h2>
@@ -383,7 +385,7 @@ const Dashboard = ({ children }: DashboardProps) => {
       >
         <div className="p-6">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logoLight} alt="LumiCRM" className="lumi-logo h-8 w-auto object-contain" />
+            <BrandLogo />
           </Link>
           <p className="lumi-muted mt-3 text-xs uppercase tracking-[0.18em]">Ваш личный облачный офис</p>
         </div>
@@ -449,17 +451,34 @@ const Dashboard = ({ children }: DashboardProps) => {
         </header>
 
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 pb-8 md:p-8">
-          {isHome ? renderHome() : <div key={syncRevision}>{children}</div>}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={`${location.pathname}${location.search}`}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
+            >
+              {isHome ? renderHome() : <div key={syncRevision}>{children}</div>}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] md:hidden" role="dialog" aria-modal="true" aria-label="Главное меню">
-          <button type="button" className="absolute inset-0 bg-black/65" onClick={() => setMobileMenuOpen(false)} aria-label="Закрыть главное меню" />
-          <aside className="lumi-sidebar absolute inset-y-0 left-0 flex w-[min(88vw,20rem)] flex-col border-r shadow-2xl">
+      <AnimatePresence>
+        {mobileMenuOpen && (
+        <motion.div className="fixed inset-0 z-[100] md:hidden" role="dialog" aria-modal="true" aria-label="Главное меню">
+          <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} type="button" className="absolute inset-0 bg-black/65" onClick={() => setMobileMenuOpen(false)} aria-label="Закрыть главное меню" />
+          <motion.aside
+            initial={reduceMotion ? false : { x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={reduceMotion ? undefined : { x: '-100%' }}
+            transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="lumi-sidebar absolute inset-y-0 left-0 flex w-[min(88vw,20rem)] flex-col border-r shadow-2xl"
+          >
             <div className="lumi-border flex items-center justify-between border-b px-5 py-4">
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
-                <img src={logoLight} alt="LumiCRM" className="lumi-logo h-8 w-auto object-contain" />
+                <BrandLogo />
               </Link>
               <button type="button" onClick={() => setMobileMenuOpen(false)} className="lumi-control rounded-xl p-2.5" aria-label="Закрыть главное меню"><X className="h-5 w-5" /></button>
             </div>
@@ -492,9 +511,10 @@ const Dashboard = ({ children }: DashboardProps) => {
             <div className="lumi-border border-t p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <button type="button" onClick={() => void handleLogout()} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-red-400 transition hover:bg-red-500/10"><LogOut className="h-5 w-5" />Выйти</button>
             </div>
-          </aside>
-        </div>
-      )}
+          </motion.aside>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   )

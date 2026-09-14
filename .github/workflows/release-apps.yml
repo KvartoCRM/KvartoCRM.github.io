@@ -1,4 +1,4 @@
-name: Release LumiCRM applications
+name: Release KvartoCRM applications
 
 on:
   push:
@@ -56,11 +56,11 @@ jobs:
           export LUMICRM_VERSION_NAME="${GITHUB_REF_NAME#app-v}"
           chmod +x ./gradlew
           ./gradlew assembleRelease
-      - run: cp android/app/build/outputs/apk/release/app-release.apk LumiCRM-Android.apk
+      - run: cp android/app/build/outputs/apk/release/app-release.apk KvartoCRM-Android.apk
       - uses: actions/upload-artifact@v7
         with:
-          name: lumicrm-android
-          path: LumiCRM-Android.apk
+          name: kvartocrm-android
+          path: KvartoCRM-Android.apk
 
   windows:
     name: Windows installer
@@ -76,10 +76,10 @@ jobs:
       - run: npm run build:desktop
       - uses: actions/upload-artifact@v7
         with:
-          name: lumicrm-windows
+          name: kvartocrm-windows
           path: |
-            release/LumiCRM-Windows-Setup.exe
-            release/LumiCRM-Windows-Setup.exe.blockmap
+            release/KvartoCRM-Windows-Setup.exe
+            release/KvartoCRM-Windows-Setup.exe.blockmap
             release/latest.yml
 
   release:
@@ -98,5 +98,5 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --repo "$GITHUB_REPOSITORY" --title "LumiCRM ${GITHUB_REF_NAME#app-v}" --notes "Установочные файлы LumiCRM для Android и Windows. Данные CRM доступны офлайн после первой синхронизации с аккаунтом. Следующие версии Windows устанавливаются автоматически, Android обновляется поверх текущей установки без удаления данных."
+            gh release create "$GITHUB_REF_NAME" release-assets/* --repo "$GITHUB_REPOSITORY" --title "KvartoCRM ${GITHUB_REF_NAME#app-v}" --notes "Установочные файлы KvartoCRM для Android и Windows. Данные CRM доступны офлайн после первой синхронизации с аккаунтом. Следующие версии Windows устанавливаются автоматически, Android обновляется поверх текущей установки без удаления данных."
           fi

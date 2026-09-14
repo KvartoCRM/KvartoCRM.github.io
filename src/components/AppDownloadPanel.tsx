@@ -10,9 +10,9 @@ interface InstallPromptEvent extends Event {
 
 const platformCopy: Record<AppPlatform, { title: string; description: string }> = {
   android: { title: 'Android', description: 'APK с настоящей фиксацией вертикального экрана.' },
-  windows: { title: 'Windows', description: 'Установщик создаст ярлык LumiCRM на рабочем столе.' },
+  windows: { title: 'Windows', description: 'Установщик создаст ярлык KvartoCRM на рабочем столе.' },
   ios: { title: 'iPhone или iPad', description: 'Автономная web-версия устанавливается через Safari.' },
-  other: { title: 'Это устройство', description: 'Установите автономную web-версию LumiCRM.' },
+  other: { title: 'Это устройство', description: 'Установите автономную web-версию KvartoCRM.' },
 }
 
 const AppDownloadPanel = () => {
@@ -58,7 +58,7 @@ const AppDownloadPanel = () => {
         <div className="flex items-start gap-3">
           <div className="lumi-control rounded-xl p-3"><Download className="lumi-accent-text h-6 w-6" /></div>
           <div>
-            <h2 className="lumi-text text-xl font-semibold">Скачать LumiCRM</h2>
+            <h2 className="lumi-text text-xl font-semibold">Скачать KvartoCRM</h2>
             <p className="lumi-muted mt-1 text-sm">Мы определили устройство: {platformCopy[platform].title}. {platformCopy[platform].description}</p>
           </div>
         </div>
@@ -93,7 +93,7 @@ const AppDownloadPanel = () => {
 
       {iosHint && (
         <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          На iPhone откройте LumiCRM в Safari, нажмите «Поделиться», затем «На экран Домой». Apple не разрешает устанавливать APK на iPhone.
+          На iPhone откройте KvartoCRM в Safari, нажмите «Поделиться», затем «На экран Домой». Apple не разрешает устанавливать APK на iPhone.
         </div>
       )}
       <p className="lumi-muted mt-4 text-xs leading-5">После скачивания система попросит подтвердить установку — браузер не может нажать это подтверждение вместо пользователя.</p>

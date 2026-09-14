@@ -103,9 +103,9 @@ const SettingsPage = () => {
         await syncNativeReminders(user.id)
         setNotificationMessage(exactAlarms
           ? 'Системные уведомления и точные будильники на этом телефоне включены.'
-          : 'Уведомления включены. Для точного срабатывания разрешите LumiCRM будильники и напоминания в настройках Android.')
+          : 'Уведомления включены. Для точного срабатывания разрешите KvartoCRM будильники и напоминания в настройках Android.')
       } else {
-        setNotificationMessage('Разрешите уведомления для LumiCRM в настройках телефона.')
+        setNotificationMessage('Разрешите уведомления для KvartoCRM в настройках телефона.')
       }
       return
     }
@@ -143,7 +143,7 @@ const SettingsPage = () => {
     setRestoreProgress('')
     setRestoreComplete(false)
     try {
-      if (file.size > 50 * 1024 * 1024) throw new Error('Файл резервной копии больше 50 МБ. Выберите исходный JSON-файл LumiCRM.')
+      if (file.size > 50 * 1024 * 1024) throw new Error('Файл резервной копии больше 50 МБ. Выберите исходный JSON-файл KvartoCRM.')
       const backup = parseWorkspaceBackup(await file.text())
       setSelectedBackup({ name: file.name, backup, summary: summarizeWorkspaceBackup(backup) })
     } catch (backupError) {
@@ -212,7 +212,7 @@ const SettingsPage = () => {
       <section id="account" className="lumi-panel scroll-mt-28 rounded-2xl border p-4 sm:p-6">
         <div className="mb-5 flex items-center gap-3">
           <UserRound className="lumi-accent-text h-6 w-6" />
-          <div><h2 className="lumi-text text-xl font-semibold">Аккаунт и безопасность</h2><p className="lumi-muted text-sm">Аватар, личные данные, пароль и выход из LumiCRM.</p></div>
+          <div><h2 className="lumi-text text-xl font-semibold">Аккаунт и безопасность</h2><p className="lumi-muted text-sm">Аватар, личные данные, пароль и выход из KvartoCRM.</p></div>
         </div>
 
         <div className="lumi-panel-muted flex flex-col gap-5 rounded-2xl border p-4 sm:flex-row sm:items-center">
@@ -249,7 +249,7 @@ const SettingsPage = () => {
             <DatabaseBackup className="lumi-accent-text mt-0.5 h-6 w-6" />
             <div>
               <h2 className="lumi-text text-xl font-semibold">Резервная копия офиса</h2>
-              <p className="lumi-muted mt-1 text-sm">Скачайте данные офиса или восстановите их из JSON-копии LumiCRM.</p>
+              <p className="lumi-muted mt-1 text-sm">Скачайте данные офиса или восстановите их из JSON-копии KvartoCRM.</p>
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -284,7 +284,7 @@ const SettingsPage = () => {
         )}
         {backupMessage && <p className={`mt-4 rounded-xl border px-4 py-3 text-sm ${restoreComplete ? 'border-emerald-700/40 bg-emerald-950/20 text-emerald-300' : 'lumi-border lumi-muted'}`}>{backupMessage}</p>}
         {restoreComplete && <button type="button" onClick={() => window.location.reload()} className="lumi-control mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Обновить данные на экране</button>}
-        <p className="lumi-muted mt-4 text-xs leading-5">JSON-копия хранит записи и временные ссылки на файлы. Файлы переносятся, пока ссылки доступны. Если ссылка истекла, LumiCRM дополнительно проверит локальный кэш устройства, на котором файл был загружен.</p>
+        <p className="lumi-muted mt-4 text-xs leading-5">JSON-копия хранит записи и временные ссылки на файлы. Файлы переносятся, пока ссылки доступны. Если ссылка истекла, KvartoCRM дополнительно проверит локальный кэш устройства, на котором файл был загружен.</p>
       </section>
 
       <section className="lumi-panel rounded-2xl border p-6">
@@ -325,7 +325,7 @@ const SettingsPage = () => {
             return <div key={item.key} className="lumi-border flex items-center justify-between border-b py-4 last:border-0"><div className="flex items-center gap-3"><div className="lumi-control rounded-xl p-3"><Icon className="h-5 w-5" /></div><span className="lumi-text font-medium">{item.label}</span></div><Toggle label={item.label} value={user.notificationPreferences[item.key]} onChange={value => void updateNotificationPreferences({ [item.key]: value })} /></div>
           })}
         </div>
-        <p className="lumi-muted mt-4 text-sm">Для задач, звонков и встреч со временем LumiCRM напоминает за день, за час, за 5 минут и точно в назначенный момент.</p>
+        <p className="lumi-muted mt-4 text-sm">Для задач, звонков и встреч со временем KvartoCRM напоминает за день, за час, за 5 минут и точно в назначенный момент.</p>
         <div className="lumi-panel-muted mt-5 flex flex-col items-start justify-between gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3"><Smartphone className="lumi-accent-text mt-0.5 h-5 w-5" /><div><p className="lumi-text font-medium">Разрешение на этом устройстве</p><p className="lumi-muted mt-1 text-sm">{permission === 'granted' ? 'Разрешено' : permission === 'denied' ? 'Заблокировано в браузере' : permission === 'unsupported' ? 'Не поддерживается' : 'Ещё не запрошено'}</p></div></div>
           {permission === 'default' && <button type="button" onClick={() => void requestNotifications()} className="lumi-gradient-button rounded-xl px-4 py-2.5 text-sm font-semibold">Включить</button>}

@@ -1,9 +1,9 @@
 {
-  "name": "lumi-crm",
+  "name": "kvarto-crm",
   "private": true,
-  "version": "1.2.12",
-  "description": "LumiCRM — облачный офис для специалистов по недвижимости",
-  "author": "Lumi-CRM",
+  "version": "1.3.0",
+  "description": "KvartoCRM — облачный офис для специалистов по недвижимости",
+  "author": "KvartoCRM",
   "type": "module",
   "main": "desktop/main.cjs",
   "scripts": {
@@ -64,8 +64,8 @@
   },
   "build": {
     "appId": "com.lumicrm.office",
-    "productName": "LumiCRM",
-    "artifactName": "LumiCRM-Windows-Setup.${ext}",
+    "productName": "KvartoCRM",
+    "artifactName": "KvartoCRM-Windows-Setup.${ext}",
     "directories": {
       "output": "release"
     },
@@ -76,14 +76,14 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon-512-v2.png"
+      "icon": "public/kvarto-icon-512.png"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "LumiCRM"
+      "shortcutName": "KvartoCRM"
     },
     "publish": [
       {

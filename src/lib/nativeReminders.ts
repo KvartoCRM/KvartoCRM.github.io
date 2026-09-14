@@ -67,7 +67,7 @@ const configureNativeNotifications = async () => {
     await LocalNotifications.createChannel({
       id: REMINDER_CHANNEL,
       name: 'Задачи, звонки и встречи',
-      description: 'Точные рабочие напоминания LumiCRM',
+      description: 'Точные рабочие напоминания KvartoCRM',
       importance: 5,
       visibility: 1,
       vibration: true,
@@ -102,7 +102,7 @@ export const syncNativeReminders = async (userId: string) => {
       sourceType: 'event' as const,
       sourceId: event.id,
       title: `${event.type === 'call' ? 'Звонок' : 'Встреча'}: ${event.title}`,
-      body: event.location || event.notes || 'Запланированное событие LumiCRM',
+      body: event.location || event.notes || 'Запланированное событие KvartoCRM',
       route: event.type === 'call' ? '/calls' : '/calendar',
       dueAt: new Date(`${event.event_date}T${String(event.event_time).slice(0, 8)}`),
     })),
@@ -169,7 +169,7 @@ export const installNativeNotificationHandlers = async () => {
       }
       void LocalNotifications.schedule({ notifications: [{
         id: notificationId(sourceType || 'reminder', sourceId || String(action.notification.id), Math.floor(Date.now() / 60_000)),
-        title: action.notification.title || 'Напоминание LumiCRM',
+        title: action.notification.title || 'Напоминание KvartoCRM',
         body: `${extra.reminderBody || action.notification.body || 'Рабочее напоминание'} · отложено на 15 минут`,
         schedule: { at: next, allowWhileIdle: true },
         channelId: REMINDER_CHANNEL,

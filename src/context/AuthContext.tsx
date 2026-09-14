@@ -208,7 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (navigator.onLine) {
         void supabase.from('profiles').select('*').eq('id', source.id).maybeSingle().then(({ data: profile, error: profileError }) => {
           if (profileError) {
-            console.error('Failed to refresh LumiCRM profile:', profileError)
+            console.error('Failed to refresh KvartoCRM profile:', profileError)
             return
           }
           applyMappedUser(mapSupabaseUser(source, profile as Record<string, unknown> | null))
@@ -222,7 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .select('*')
       .eq('id', source.id)
       .maybeSingle()
-    if (profileError) console.error('Failed to load LumiCRM profile:', profileError)
+    if (profileError) console.error('Failed to load KvartoCRM profile:', profileError)
     applyMappedUser(mapSupabaseUser(source, profile as Record<string, unknown> | null))
   }
 

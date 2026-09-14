@@ -2,7 +2,8 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.lumicrm.office',
-  appName: 'LumiCRM',
+  // Keep the legacy appId so existing Android installs update in place.
+  appName: 'KvartoCRM',
   webDir: 'dist',
   android: {
     backgroundColor: '#070b14',
@@ -13,7 +14,7 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       smallIcon: 'ic_launcher_foreground',
-      iconColor: '#4f46e5',
+      iconColor: '#4161f5',
     },
   },
 }

@@ -3,7 +3,7 @@ import { CheckCircle2, Eye, EyeOff, Lock, Mail, ShieldCheck, UserRound } from 'l
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import logoLight from '../assets/logo-light.png'
+import BrandLogo from '../components/BrandLogo'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import InstallAppButton from '../components/InstallAppButton'
 import { supabase } from '../lib/supabase'
@@ -121,9 +121,9 @@ const LoginPage = () => {
       >
         <div className="lumi-panel rounded-3xl border p-7 backdrop-blur sm:p-9">
           <div className="mb-7 text-center">
-            <img src={logoLight} alt="LumiCRM" className="lumi-logo mx-auto h-10 w-auto object-contain" />
+            <BrandLogo className="justify-center" markClassName="h-11 w-11" />
             <h1 className="lumi-text mt-6 text-2xl font-bold">
-              {mode === 'login' ? 'Вход в LumiCRM' : 'Создайте свой офис'}
+              {mode === 'login' ? 'Вход в KvartoCRM' : 'Создайте свой офис'}
             </h1>
             <p className="lumi-muted mt-2 text-sm leading-6">
               {mode === 'login'
@@ -221,7 +221,7 @@ const LoginPage = () => {
           )}
 
           <p className="lumi-muted mt-6 text-center text-xs leading-5">
-            Регистрируясь, вы создаёте отдельный защищённый офис LumiCRM.
+            Регистрируясь, вы создаёте отдельный защищённый офис KvartoCRM.
           </p>
         </div>
       </motion.div>

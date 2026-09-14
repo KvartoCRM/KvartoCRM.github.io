@@ -64,14 +64,14 @@ const InstallAppButton = ({ compact = false }: InstallAppButtonProps) => {
         type="button"
         onClick={() => void install()}
         className="lumi-control inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition"
-        aria-label="Установить LumiCRM"
+        aria-label="Установить KvartoCRM"
       >
         {compact ? <Download className="h-5 w-5" /> : <MonitorDown className="h-5 w-5" />}
         <span>{compact ? 'Скачать' : 'Скачать приложение'}</span>
       </button>
       {showHint && (
         <div className="lumi-theme-menu lumi-muted-strong absolute right-0 top-full z-50 mt-2 w-72 rounded-xl p-4 text-xs leading-5">
-          На iPhone и iPad нажмите «Поделиться» → «На экран Домой». На других устройствах выберите в меню браузера «Установить LumiCRM».
+          На iPhone и iPad нажмите «Поделиться» → «На экран Домой». На других устройствах выберите в меню браузера «Установить KvartoCRM».
         </div>
       )}
     </div>

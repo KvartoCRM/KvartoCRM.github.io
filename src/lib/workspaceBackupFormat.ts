@@ -33,7 +33,7 @@ export const SERVER_MANAGED_WORKSPACE_TABLES: WorkspaceBackupTable[] = [
 ]
 
 export type WorkspaceBackup = {
-  format: 'lumicrm-workspace-backup'
+  format: 'kvartocrm-workspace-backup'
   version: 1
   exportedAt: string
   sourceUserId: string
@@ -80,8 +80,8 @@ export const parseWorkspaceBackup = (input: string | unknown): WorkspaceBackup =
     }
   }
 
-  if (!isRecord(parsed) || parsed.format !== 'lumicrm-workspace-backup') {
-    throw new Error('Это не резервная копия LumiCRM.')
+  if (!isRecord(parsed) || !['kvartocrm-workspace-backup', 'lumicrm-workspace-backup'].includes(String(parsed.format))) {
+    throw new Error('Это не резервная копия KvartoCRM.')
   }
   if (parsed.version !== 1) {
     throw new Error(`Версия резервной копии ${String(parsed.version ?? 'не указана')} пока не поддерживается.`)
@@ -119,7 +119,7 @@ export const parseWorkspaceBackup = (input: string | unknown): WorkspaceBackup =
   const warnings = Array.isArray(parsed.warnings) ? parsed.warnings.filter((warning): warning is string => typeof warning === 'string') : []
 
   return {
-    format: 'lumicrm-workspace-backup',
+    format: 'kvartocrm-workspace-backup',
     version: 1,
     exportedAt: parsed.exportedAt,
     sourceUserId: parsed.sourceUserId,

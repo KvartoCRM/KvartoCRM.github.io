@@ -74,7 +74,7 @@ const InstalledAppPanel = () => {
         <div className="flex items-start gap-3">
           <div className="lumi-control rounded-xl p-3"><RefreshCw className={`lumi-accent-text h-6 w-6 ${checking ? 'animate-spin' : ''}`} /></div>
           <div>
-            <h2 className="lumi-text text-xl font-semibold">Обновления LumiCRM</h2>
+            <h2 className="lumi-text text-xl font-semibold">Обновления KvartoCRM</h2>
             <p className="lumi-muted mt-1 text-sm">Установлена версия {currentVersion}{published?.version ? ` · доступна ${published.version}` : ''}.</p>
             {!hasUpdate && !checking && !error && <p className="mt-2 flex items-center gap-2 text-sm text-emerald-500"><CheckCircle2 className="h-4 w-4" />Установлена актуальная версия</p>}
             {error && <p className="mt-2 text-sm text-amber-500">{error}. Проверка повторится при следующем запуске.</p>}

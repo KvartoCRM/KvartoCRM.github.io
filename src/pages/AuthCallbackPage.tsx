@@ -3,7 +3,7 @@ import { CheckCircle2, LoaderCircle, XCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { parseAuthCallbackCredentials } from '../lib/authCallback'
-import logoLight from '../assets/logo-light.png'
+import BrandLogo from '../components/BrandLogo'
 
 const AuthCallbackPage = () => {
   const navigate = useNavigate()
@@ -54,7 +54,7 @@ const AuthCallbackPage = () => {
   return (
     <div className="lumi-shell flex min-h-screen items-center justify-center p-4">
       <div className="lumi-panel w-full max-w-md rounded-3xl border p-8 text-center">
-        <img src={logoLight} alt="LumiCRM" className="lumi-logo mx-auto h-10 w-auto" />
+        <BrandLogo className="justify-center" markClassName="h-11 w-11" />
         {status === 'loading' && <LoaderCircle className="lumi-accent-text mx-auto mt-8 h-12 w-12 animate-spin" />}
         {status === 'success' && <CheckCircle2 className="mx-auto mt-8 h-12 w-12 text-emerald-400" />}
         {status === 'error' && <XCircle className="mx-auto mt-8 h-12 w-12 text-red-400" />}
@@ -65,7 +65,7 @@ const AuthCallbackPage = () => {
           {status === 'loading'
             ? 'Это займёт несколько секунд.'
             : status === 'success'
-              ? 'Открываем ваш новый офис LumiCRM.'
+              ? 'Открываем ваш новый офис KvartoCRM.'
               : 'Ссылка могла устареть. Вернитесь на страницу входа и запросите письмо повторно.'}
         </p>
         {status === 'error' && (

@@ -5,6 +5,8 @@ import { ThemeProvider } from './context/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import WelcomeModal from './components/WelcomeModal'
 import PortraitGuard from './components/PortraitGuard'
+import BrandBootSplash from './components/BrandBootSplash'
+import BrandLogo from './components/BrandLogo'
 import { routeLoaders } from './lib/routeLoaders'
 
 const LoginPage = lazy(routeLoaders.login)
@@ -31,8 +33,9 @@ const MonthlyPlanPage = lazy(routeLoaders.plan)
 const PublicPropertyPage = lazy(routeLoaders.publicProperty)
 
 const LoadingScreen = () => (
-  <div className="lumi-shell lumi-muted flex min-h-screen items-center justify-center">
-    Загружаем LumiCRM…
+  <div className="lumi-shell flex min-h-screen flex-col items-center justify-center gap-5" role="status">
+    <BrandLogo markClassName="animate-pulse" />
+    <span className="lumi-muted text-sm">Подключаем ваш офис…</span>
   </div>
 )
 
@@ -48,6 +51,7 @@ function App() {
   return (
     <ErrorBoundary>
       <PortraitGuard>
+        <BrandBootSplash />
         <Router>
           <ThemeProvider>
             <AuthProvider>

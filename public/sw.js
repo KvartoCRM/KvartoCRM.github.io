@@ -1,5 +1,5 @@
-const CACHE_NAME = 'lumicrm-shell-v29'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192-v2.png', '/icon-512-v2.png']
+const CACHE_NAME = 'kvartocrm-shell-v30'
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/kvarto-icon-192.png', '/kvarto-icon-512.png']
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -80,7 +80,7 @@ self.addEventListener('fetch', event => {
 })
 
 self.addEventListener('push', event => {
-  let payload = { title: 'LumiCRM', body: 'В вашем офисе новое событие', link: '/' }
+  let payload = { title: 'KvartoCRM', body: 'В вашем офисе новое событие', link: '/' }
   try {
     if (event.data) payload = { ...payload, ...event.data.json() }
   } catch {
@@ -89,8 +89,8 @@ self.addEventListener('push', event => {
 
   event.waitUntil(self.registration.showNotification(payload.title, {
     body: payload.body,
-    icon: '/icon-192-v2.png',
-    badge: '/icon-192-v2.png',
+    icon: '/kvarto-icon-192.png',
+    badge: '/kvarto-icon-192.png',
     data: { link: payload.link || '/' },
     tag: payload.tag || 'lumicrm-notification',
     timestamp: payload.timestamp || Date.now(),

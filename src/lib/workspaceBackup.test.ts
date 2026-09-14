@@ -3,7 +3,7 @@ import test from 'node:test'
 import { parseWorkspaceBackup, SERVER_MANAGED_WORKSPACE_TABLES, summarizeWorkspaceBackup } from './workspaceBackupFormat.ts'
 
 const validBackup = {
-  format: 'lumicrm-workspace-backup',
+  format: 'kvartocrm-workspace-backup',
   version: 1,
   exportedAt: '2026-08-29T13:02:26.640Z',
   sourceUserId: 'source-user',
@@ -17,9 +17,9 @@ const validBackup = {
   warnings: ['Исходное предупреждение', 123],
 }
 
-test('parseWorkspaceBackup validates and normalizes a LumiCRM backup', () => {
+test('parseWorkspaceBackup validates and normalizes a KvartoCRM backup', () => {
   const backup = parseWorkspaceBackup(JSON.stringify(validBackup))
-  assert.equal(backup.format, 'lumicrm-workspace-backup')
+  assert.equal(backup.format, 'kvartocrm-workspace-backup')
   assert.equal(backup.tables.clients.length, 1)
   assert.equal(backup.tables.tasks.length, 0)
   assert.deepEqual(backup.fileUrls, { 'file-1': 'https://example.com/photo.jpg' })
@@ -35,8 +35,13 @@ test('summarizeWorkspaceBackup counts records and file metadata', () => {
 
 test('parseWorkspaceBackup rejects unrelated and malformed files', () => {
   assert.throws(() => parseWorkspaceBackup('{bad json'), /корректным JSON/)
-  assert.throws(() => parseWorkspaceBackup({ ...validBackup, format: 'another-app' }), /не резервная копия LumiCRM/)
+  assert.throws(() => parseWorkspaceBackup({ ...validBackup, format: 'another-app' }), /не резервная копия KvartoCRM/)
   assert.throws(() => parseWorkspaceBackup({ ...validBackup, tables: { clients: 'broken' } }), /clients повреждён/)
+})
+
+test('parseWorkspaceBackup keeps legacy LumiCRM backups importable', () => {
+  const backup = parseWorkspaceBackup({ ...validBackup, format: 'lumicrm-workspace-backup' })
+  assert.equal(backup.format, 'kvartocrm-workspace-backup')
 })
 
 test('restore skips notifications that only server-side jobs may create', () => {

@@ -23,7 +23,7 @@ test('network probes return bounded incompressible data without upstream access'
 test('Pages adapter exposes the gateway on the application origin', async () => {
   const response = await handlePagesRequest({ request: new Request(`${pagesOrigin}/__health`) })
   assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { ok: true, service: 'LumiCRM gateway' })
+  assert.deepEqual(await response.json(), { ok: true, service: 'KvartoCRM gateway' })
   assert.equal(response.headers.get('x-lumicrm-gateway'), 'cloudflare')
 })
 

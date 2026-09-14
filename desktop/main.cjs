@@ -25,7 +25,7 @@ const setupAutoUpdates = () => {
   autoUpdater.on('update-downloaded', async info => {
     const result = await dialog.showMessageBox({
       type: 'info',
-      title: 'Обновление LumiCRM готово',
+      title: 'Обновление KvartoCRM готово',
       message: `Версия ${info.version} уже загружена. Перезапустить приложение и установить обновление?`,
       buttons: ['Перезапустить сейчас', 'Позже'],
       defaultId: 0,
@@ -45,7 +45,7 @@ const createWindow = async () => {
     height: 940,
     minWidth: 980,
     minHeight: 680,
-    title: 'LumiCRM',
+    title: 'KvartoCRM',
     backgroundColor: '#070b14',
     autoHideMenuBar: true,
     webPreferences: {

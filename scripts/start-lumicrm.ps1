@@ -5,15 +5,15 @@ $localUrl = 'http://localhost:3000/'
 if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) {
   Add-Type -AssemblyName PresentationFramework
   [System.Windows.MessageBox]::Show(
-    'Для локального запуска LumiCRM требуется Node.js. Используйте публичный адрес приложения.',
-    'LumiCRM'
+    'Для локального запуска KvartoCRM требуется Node.js. Используйте публичный адрес приложения.',
+    'KvartoCRM'
   ) | Out-Null
   exit 1
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules'))) {
   $install = Start-Process -FilePath 'npm.cmd' -ArgumentList 'install' -WorkingDirectory $projectRoot -Wait -PassThru
-  if ($install.ExitCode -ne 0) { throw 'Не удалось установить компоненты LumiCRM.' }
+  if ($install.ExitCode -ne 0) { throw 'Не удалось установить компоненты KvartoCRM.' }
 }
 
 $listener = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
@@ -40,7 +40,7 @@ if (-not $listener) {
       # The server is still starting.
     }
   }
-  if (-not $ready) { throw 'LumiCRM не запустилась за отведённое время.' }
+  if (-not $ready) { throw 'KvartoCRM не запустилась за отведённое время.' }
 }
 
 Start-Process $localUrl
