@@ -33,7 +33,7 @@ test('a response that stalls after headers times out and uses the read fallback'
   })
   assert.deepEqual(await response.json(), [{ id: 'remote-task', user_id: 'body-test' }])
   assert.equal(fallbackCalls, 1)
-  assert.ok(Date.now() - started < 5000)
+  assert.ok(Date.now() - started < 9000)
 })
 
 test('a queued call survives an endpoint change and replays once through the new primary', async () => {

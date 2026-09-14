@@ -26,7 +26,9 @@ export const useTasks = (userId?: string) => {
   }
   const refreshRelated = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey }),
+      // Keep the optimistic task visible. An immediate refetch can finish from
+      // stale device cache while a slow mobile response is still completing.
+      queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
       userId ? queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }) : Promise.resolve(),
     ])
   }

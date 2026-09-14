@@ -73,8 +73,10 @@ const UUID_TABLES = new Set([
 const SOFT_DELETE_TABLES = new Set(['clients', 'properties', 'tasks', 'events', 'deals', 'crm_activities'])
 const SAFE_HEADERS = new Set(['accept', 'content-type', 'content-profile', 'prefer', 'range', 'range-unit'])
 const nativeFetch = globalThis.fetch.bind(globalThis)
-const READ_TIMEOUT_MS = 2_000
-const WRITE_TIMEOUT_MS = 2_000
+// Mobile networks can need more than two seconds before a Supabase REST body
+// completes. A premature timeout returned stale cache after a successful write.
+const READ_TIMEOUT_MS = 6_000
+const WRITE_TIMEOUT_MS = 6_000
 const INTERACTIVE_NETWORK_TIMEOUT_MS = 8_000
 const FILE_NETWORK_TIMEOUT_MS = 30_000
 

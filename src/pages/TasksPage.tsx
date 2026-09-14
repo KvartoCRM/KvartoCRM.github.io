@@ -86,7 +86,7 @@ const TasksPage = () => {
     }
     setActiveQuadrant(quadrant)
     setIsModalOpen(false)
-    await syncNativeReminders(user.id).catch(() => undefined)
+    void syncNativeReminders(user.id).catch(() => undefined)
   }
 
   const updateTaskStatus = async (task: Task, newStatus: 'todo' | 'inprogress' | 'done') => {
@@ -98,7 +98,7 @@ const TasksPage = () => {
       setError('Не удалось изменить статус задачи.')
       return
     }
-    await syncNativeReminders(user.id).catch(() => undefined)
+    void syncNativeReminders(user.id).catch(() => undefined)
   }
 
   const deleteTask = async (taskId: string) => {
@@ -109,7 +109,7 @@ const TasksPage = () => {
     } catch {
       setError('Не удалось переместить задачу в корзину.')
     }
-    await syncNativeReminders(user.id).catch(() => undefined)
+    void syncNativeReminders(user.id).catch(() => undefined)
   }
 
   const snoozeTask = async (task: Task) => {
@@ -125,7 +125,7 @@ const TasksPage = () => {
       setError('Не удалось отложить задачу.')
       return
     }
-    await syncNativeReminders(user.id).catch(() => undefined)
+    void syncNativeReminders(user.id).catch(() => undefined)
   }
 
   const openModal = (task: Task | null = null) => {

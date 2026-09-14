@@ -36,9 +36,9 @@ test('production uses direct Supabase first on GitHub, Pages and packaged apps',
   const primary = config.match(/^VITE_SUPABASE_URL=(.+)$/m)?.[1].trim()
   const fallback = config.match(/^VITE_SUPABASE_FALLBACK_URL=(.+)$/m)?.[1].trim()
   assert.equal(primary, 'https://flwsglkkarikekkopdbu.supabase.co')
-  assert.equal(fallback, 'https://lumicrm-gateway.denzotrail.workers.dev')
+  assert.equal(fallback, undefined)
   for (const origin of ['https://lumi-crm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
-    assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, fallback])
+    assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, undefined])
   }
   assert.match(config, /^VITE_SUPABASE_PROJECT_REF=flwsglkkarikekkopdbu\s*$/m)
 })
