@@ -30,7 +30,7 @@ export const checkCloudConnection = async () => {
       })
       if (response.ok) return true
     } catch {
-      // Try the direct Supabase endpoint when the gateway is unavailable.
+      // Try the optional fallback when the configured primary is unavailable.
     } finally {
       window.clearTimeout(timeout)
     }

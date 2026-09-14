@@ -225,7 +225,15 @@ const getAllByIndex = async <T>(storeName: string, indexName: string, value: IDB
   })
 }
 
-const cacheKey = (userId: string, request: Request) => `${userId}:${request.url}:${request.method}:${['accept', 'range', 'prefer', 'accept-profile'].map(key => request.headers.get(key) ?? '').join(':')}`
+const cacheRequestSignature = (request: Request) => {
+  const url = new URL(request.url)
+  return `${url.pathname}${url.search}:${request.method}:${['accept', 'range', 'prefer', 'accept-profile'].map(key => request.headers.get(key) ?? '').join(':')}`
+}
+
+// The cache represents a Supabase project, not one of its transport hosts.
+// Keeping the origin out lets an installed app move safely between gateway
+// and direct endpoints without losing its device-local snapshot.
+const cacheKey = (userId: string, request: Request) => `${userId}:${cacheRequestSignature(request)}`
 
 const decodeUserId = (request: Request) => {
   const authorization = request.headers.get('authorization')
@@ -397,10 +405,18 @@ const responseFromCache = (cached: CachedResponse) => new Response(cached.body, 
   headers: { 'content-type': 'application/json', ...cached.headers, 'x-lumicrm-offline': 'cache' },
 })
 
-const findCachedResponse = async (request: Request, userId: string, _table: string) => {
+const findCachedResponse = async (request: Request, userId: string, table: string) => {
   if (!hasIndexedDb()) return null
   const exact = await runStore<CachedResponse | undefined>(RESPONSE_STORE, 'readonly', store => store.get(cacheKey(userId, request))).catch(() => undefined)
   if (exact) return responseFromCache(exact)
+
+  // v1.2.9 and older included the endpoint origin in the key. Accept a
+  // matching legacy record during migration so offline data stays visible.
+  const suffix = `:${cacheRequestSignature(request)}`
+  const legacy = (await getAllByIndex<CachedResponse>(RESPONSE_STORE, 'userTable', `${userId}:${table}`).catch(() => []))
+    .filter(record => record.key.endsWith(suffix))
+    .sort((left, right) => right.updatedAt - left.updatedAt)[0]
+  if (legacy) return responseFromCache(legacy)
 
   // Another query/page is not evidence that a complete table is cached.
   return null

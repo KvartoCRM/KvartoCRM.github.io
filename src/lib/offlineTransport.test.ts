@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import { filterRowsForUrl, orderEndpointsForOrigin, prepareOfflinePayload, rewriteRequestUrl } from './offlineTransport.ts'
 
 test('Supabase requests keep their path and query when routed through the gateway', () => {
@@ -12,14 +13,14 @@ test('Supabase requests keep their path and query when routed through the gatewa
   )
 })
 
-test('the Pages deployment uses its same-origin gateway first', () => {
+test('a legacy gateway configuration can prefer its same-origin endpoint', () => {
   assert.deepEqual(
     orderEndpointsForOrigin('https://worker.example', 'https://lumicrm.pages.dev', 'https://lumicrm.pages.dev'),
     ['https://lumicrm.pages.dev', 'https://worker.example'],
   )
 })
 
-test('GitHub Pages and Android keep the Worker as the primary gateway', () => {
+test('a legacy gateway configuration keeps its primary outside Pages', () => {
   assert.deepEqual(
     orderEndpointsForOrigin('https://worker.example', 'https://lumicrm.pages.dev', 'https://lumi-crm.github.io'),
     ['https://worker.example', 'https://lumicrm.pages.dev'],
@@ -28,6 +29,18 @@ test('GitHub Pages and Android keep the Worker as the primary gateway', () => {
     orderEndpointsForOrigin('https://worker.example', 'https://lumicrm.pages.dev', 'https://localhost'),
     ['https://worker.example', 'https://lumicrm.pages.dev'],
   )
+})
+
+test('production uses direct Supabase first on GitHub, Pages and packaged apps', () => {
+  const config = readFileSync(new URL('../../.env.production', import.meta.url), 'utf8')
+  const primary = config.match(/^VITE_SUPABASE_URL=(.+)$/m)?.[1].trim()
+  const fallback = config.match(/^VITE_SUPABASE_FALLBACK_URL=(.+)$/m)?.[1].trim()
+  assert.equal(primary, 'https://flwsglkkarikekkopdbu.supabase.co')
+  assert.equal(fallback, 'https://lumicrm-gateway.denzotrail.workers.dev')
+  for (const origin of ['https://lumi-crm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
+    assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, fallback])
+  }
+  assert.match(config, /^VITE_SUPABASE_PROJECT_REF=flwsglkkarikekkopdbu\s*$/m)
 })
 
 test('offline cache applies PostgREST filters, sorting and limits', () => {

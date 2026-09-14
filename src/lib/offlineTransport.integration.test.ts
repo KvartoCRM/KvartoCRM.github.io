@@ -36,13 +36,14 @@ test('a response that stalls after headers times out and uses the read fallback'
   assert.ok(Date.now() - started < 5000)
 })
 
-test('a queued call remains visible after a reload and is replayed once', async () => {
+test('a queued call survives an endpoint change and replays once through the new primary', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
 
   const userId = '00000000-0000-4000-8000-000000000001'
   const rows: Record<string, unknown>[] = []
   let postCount = 0
+  const postOrigins: string[] = []
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     if (request.method === 'GET') {
@@ -50,6 +51,7 @@ test('a queued call remains visible after a reload and is replayed once', async 
     }
     if (request.method === 'POST') {
       postCount += 1
+      postOrigins.push(new URL(request.url).origin)
       const body = JSON.parse(await request.text()) as Record<string, unknown>
       const incoming = Array.isArray(body) ? body : [body]
       for (const row of incoming) {
@@ -79,7 +81,8 @@ test('a queued call remains visible after a reload and is replayed once', async 
   assert.equal(queued.headers.get('x-lumicrm-offline'), 'queued')
   assert.equal(await getOfflineQueueCount(userId), 1)
 
-  const afterReload = await offlineFetch(listUrl, { headers })
+  const updatedFetch = createOfflineFetch('https://direct.example', 'https://gateway.example')
+  const afterReload = await updatedFetch(listUrl.replace('https://gateway.example', 'https://direct.example'), { headers })
   assert.deepEqual((await afterReload.json() as Array<{ id: string }>).map(row => row.id), [callId])
 
   Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: true })
@@ -87,6 +90,7 @@ test('a queued call remains visible after a reload and is replayed once', async 
   assert.equal(await flushOfflineQueue(), 1)
   assert.equal(await getOfflineQueueCount(userId), 0)
   assert.equal(postCount, 1)
+  assert.deepEqual(postOrigins, ['https://direct.example'])
   assert.equal(rows[0]?.id, callId)
 })
 
