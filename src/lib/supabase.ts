@@ -21,7 +21,7 @@ export const checkCloudConnection = async () => {
   const endpoints = [...new Set([supabaseUrl, supabaseFallbackUrl].filter(Boolean))]
   for (const endpoint of endpoints) {
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 2_000)
+    const timeout = window.setTimeout(() => controller.abort(), 8_000)
     try {
       const response = await fetch(`${endpoint}/auth/v1/health`, {
         cache: 'no-store',

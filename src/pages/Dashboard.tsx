@@ -37,6 +37,7 @@ import NotificationCenter from '../components/NotificationCenter'
 import OfflineSyncStatus from '../components/OfflineSyncStatus'
 import GlobalSearch from '../components/GlobalSearch'
 import ProfileMenu from '../components/ProfileMenu'
+import WorkspaceRefreshButton from '../components/WorkspaceRefreshButton'
 
 const DashboardAnalytics = lazy(() => import('../components/DashboardAnalytics'))
 
@@ -438,6 +439,7 @@ const Dashboard = ({ children }: DashboardProps) => {
           <div className="order-3 w-full md:order-none md:max-w-md"><GlobalSearch /></div>
           <div className="order-2 ml-auto flex items-center gap-2 sm:gap-4 md:order-none">
             <OfflineSyncStatus />
+            <WorkspaceRefreshButton />
             <InstallAppButton compact />
             <button type="button" onClick={() => void printCurrentPage()} className="lumi-control hidden rounded-xl p-2.5 sm:inline-flex" title="Сохранить страницу как PDF"><FileDown className="h-5 w-5" /></button>
             <span className="hidden sm:block"><ThemeSwitcher /></span>

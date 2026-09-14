@@ -153,3 +153,40 @@ test('authentication retries through the fallback gateway without queueing', asy
   assert.equal(primaryPosts, 1)
   assert.equal(fallbackPosts, 1)
 })
+
+test('queue replay repairs payloads created against a newer task schema', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
+
+  const userId = '00000000-0000-4000-8000-000000000021'
+  const postedBodies: Array<Record<string, unknown>> = []
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    if (request.method !== 'POST') return Response.json([])
+    const body = JSON.parse(await request.text()) as Record<string, unknown>
+    postedBodies.push(body)
+    if ('smart_criteria' in body) {
+      return Response.json({ message: "Could not find the 'smart_criteria' column of 'tasks' in the schema cache" }, { status: 400 })
+    }
+    return Response.json(body, { status: 201 })
+  }) as typeof fetch
+
+  const { createOfflineFetch, configureOfflineSync, flushOfflineQueue, getOfflineQueueCount, setOfflineSession } = await import(`./offlineTransport.ts?schema-repair=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const headers = { authorization: `Bearer ${jwtFor(userId)}`, apikey: 'public-key', 'content-type': 'application/json' }
+  await offlineFetch('https://direct.example/rest/v1/tasks', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ id: 'task-1', user_id: userId, title: 'Задача', smart_criteria: {} }),
+  })
+  assert.equal(await getOfflineQueueCount(userId), 1)
+
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: true })
+  configureOfflineSync(async () => ({ userId, accessToken: jwtFor(userId) }))
+  assert.equal(await flushOfflineQueue(), 1)
+  assert.equal(await getOfflineQueueCount(userId), 0)
+  assert.equal(postedBodies.length, 2)
+  assert.equal('smart_criteria' in postedBodies[1], false)
+  assert.equal(postedBodies[1]?.id, 'task-1')
+})

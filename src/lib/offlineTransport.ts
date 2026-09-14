@@ -77,6 +77,9 @@ const nativeFetch = globalThis.fetch.bind(globalThis)
 // completes. A premature timeout returned stale cache after a successful write.
 const READ_TIMEOUT_MS = 6_000
 const WRITE_TIMEOUT_MS = 6_000
+// Queue replay runs in the background. Give unstable mobile and regional
+// routes enough time to finish instead of aborting a valid Supabase write.
+const QUEUE_WRITE_TIMEOUT_MS = 20_000
 const INTERACTIVE_NETWORK_TIMEOUT_MS = 8_000
 const FILE_NETWORK_TIMEOUT_MS = 30_000
 
@@ -462,6 +465,66 @@ const updateCachedTable = async (userId: string, table: string, method: string, 
   }))
 }
 
+const applyQueuedMutation = (
+  rows: Record<string, unknown>[],
+  entry: Pick<QueuedRequest, 'table' | 'method' | 'url' | 'body'>,
+) => {
+  const parsedBody = entry.body ? JSON.parse(entry.body) : null
+  const incoming = parsedBody
+    ? (Array.isArray(parsedBody) ? parsedBody : [parsedBody]) as Record<string, unknown>[]
+    : []
+  let result = [...rows]
+  if (entry.method === 'POST') {
+    const mutationUrl = new URL(entry.url)
+    const identityFields = (mutationUrl.searchParams.get('on_conflict') || conflictFields[entry.table] || 'id').split(',')
+    for (const row of incoming) {
+      const hasIdentity = identityFields.every(field => row[field] !== undefined)
+      const existing = hasIdentity
+        ? result.findIndex(item => identityFields.every(field => JSON.stringify(item[field]) === JSON.stringify(row[field])))
+        : -1
+      if (existing >= 0) result[existing] = { ...result[existing], ...row }
+      else result.push(row)
+    }
+  } else if (entry.method === 'PATCH') {
+    result = result.map(row => matchesMutation(row, entry.url) ? { ...row, ...incoming[0] } : row)
+  } else if (entry.method === 'DELETE') {
+    result = result.filter(row => !matchesMutation(row, entry.url))
+  }
+  return result
+}
+
+export const mergeRemoteRowsWithQueuedMutations = (
+  remoteRows: Record<string, unknown>[],
+  entries: Array<Pick<QueuedRequest, 'table' | 'method' | 'url' | 'body' | 'createdAt'>>,
+  table: string,
+  requestUrl: string,
+) => {
+  const merged = entries
+    .filter(entry => entry.table === table)
+    .sort((left, right) => left.createdAt - right.createdAt)
+    .reduce(applyQueuedMutation, remoteRows)
+  return filterRowsForUrl(merged, requestUrl)
+}
+
+const mergePendingMutationsIntoResponse = async (request: Request, response: Response, userId: string, table: string) => {
+  if (!hasIndexedDb() || !response.ok || !response.headers.get('content-type')?.includes('json')) return response
+  try {
+    const parsed = JSON.parse(await response.clone().text())
+    if (!Array.isArray(parsed)) return response
+    const entries = await getAllByIndex<QueuedRequest>(QUEUE_STORE, 'userId', userId).catch(() => [])
+    const merged = mergeRemoteRowsWithQueuedMutations(parsed, entries, table, request.url)
+    const buffered = new Response(JSON.stringify(merged), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+    Object.defineProperty(buffered, 'url', { value: response.url })
+    return buffered
+  } catch {
+    return response
+  }
+}
+
 const syntheticMutationResponse = (request: Request, method: string, payload: unknown) => {
   const prefersRepresentation = request.headers.get('prefer')?.includes('return=representation')
   if (!prefersRepresentation || method === 'DELETE') return new Response(null, { status: method === 'POST' ? 201 : 204 })
@@ -541,12 +604,10 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
   if (method === 'GET' || method === 'HEAD') {
     if (isOnline()) {
       const cached = await findCachedResponse(request, userId, table)
-      // A stale server snapshot must not erase pending local changes.
-      if (cached && await getOfflineQueueCount(userId) > 0) return cached
       const networkRequest = fetchWithFallback(request.clone(), READ_TIMEOUT_MS, fallbackUrl)
       if (cached) {
         const cachedBody = await cached.clone().text()
-        void networkRequest.then(async response => {
+        void networkRequest.then(response => mergePendingMutationsIntoResponse(request, response, userId, table)).then(async response => {
           if (!response.ok) return
           const networkBody = await response.clone().text()
           await cacheResponse(request, response, userId, table)
@@ -565,7 +626,7 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
         return cached
       }
       try {
-        const response = await networkRequest
+        const response = await mergePendingMutationsIntoResponse(request, await networkRequest, userId, table)
         if (response.ok) {
           await cacheResponse(request, response, userId, table)
           emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
@@ -638,6 +699,60 @@ const replayUrl = (entry: QueuedRequest) => {
   return url.toString()
 }
 
+const protectedQueueColumns = new Set(['id', 'user_id'])
+
+export const removeMissingColumnFromQueuedBody = (body: string, responseText: string) => {
+  const message = (() => {
+    try {
+      const parsed = JSON.parse(responseText) as { message?: unknown; details?: unknown; hint?: unknown }
+      return [parsed.message, parsed.details, parsed.hint].filter(value => typeof value === 'string').join(' ')
+    } catch {
+      return responseText
+    }
+  })()
+  const match = message.match(/(?:Could not find the|column)\s+["']?([a-z_][a-z0-9_]*)["']?\s+(?:column|of|does not exist)/i)
+    ?? message.match(/["']([a-z_][a-z0-9_]*)["']\s+column/i)
+  const column = match?.[1]
+  if (!column || protectedQueueColumns.has(column)) return null
+  try {
+    const source = JSON.parse(body)
+    const rows = Array.isArray(source) ? source : [source]
+    if (!rows.some(row => row && typeof row === 'object' && column in row)) return null
+    const cleaned = rows.map(row => {
+      if (!row || typeof row !== 'object') return row
+      const next = { ...row }
+      delete next[column]
+      return next
+    })
+    return JSON.stringify(Array.isArray(source) ? cleaned : cleaned[0])
+  } catch {
+    return null
+  }
+}
+
+const sendQueuedEntry = async (entry: QueuedRequest, headers: Headers) => {
+  for (let schemaAttempt = 0; schemaAttempt < 8; schemaAttempt += 1) {
+    const response = await fetchWithFallback(new Request(rewriteRequestUrl(replayUrl(entry), transportConfig!.url), {
+      method: entry.method,
+      headers,
+      body: entry.body || undefined,
+    }), QUEUE_WRITE_TIMEOUT_MS, transportConfig!.fallback)
+    if (response.ok || response.status !== 400 || !entry.body) return response
+    const responseText = await response.text()
+    const compatibleBody = removeMissingColumnFromQueuedBody(entry.body, responseText)
+    if (!compatibleBody) {
+      return new Response(responseText, { status: response.status, statusText: response.statusText, headers: response.headers })
+    }
+    entry.body = compatibleBody
+    entry.lastError = undefined
+    await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
+  }
+  return new Response(JSON.stringify({ message: 'Schema compatibility retry limit reached' }), {
+    status: 400,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
 export const flushOfflineQueue = async () => {
   if (syncPromise) return syncPromise
   syncPromise = (async () => {
@@ -648,8 +763,10 @@ export const flushOfflineQueue = async () => {
       .sort((a, b) => a.createdAt - b.createdAt)
     emitStatus({ online: true, pending: entries.length, syncing: entries.length > 0 })
     let synced = 0
+    const blockedTables = new Set<string>()
 
     for (const entry of entries.slice(0, 50)) {
+      if (blockedTables.has(entry.table)) continue
       try {
         const currentSession = await sessionProvider()
         if (currentSession.userId !== session.userId || !currentSession.accessToken) break
@@ -660,11 +777,7 @@ export const flushOfflineQueue = async () => {
           const prefer = headers.get('prefer') ?? ''
           if (!prefer.includes('resolution=')) headers.set('prefer', [prefer, 'resolution=merge-duplicates'].filter(Boolean).join(','))
         }
-        const response = await fetchWithFallback(new Request(rewriteRequestUrl(replayUrl(entry), transportConfig.url), {
-          method: entry.method,
-          headers,
-          body: entry.body || undefined,
-        }), WRITE_TIMEOUT_MS, transportConfig.fallback)
+        const response = await sendQueuedEntry(entry, headers)
         if (response.ok) {
           await runStore(QUEUE_STORE, 'readwrite', store => store.delete(entry.id))
           synced += 1
@@ -679,7 +792,9 @@ export const flushOfflineQueue = async () => {
         entry.attempts += 1
         entry.lastError = `HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`
         await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
-        break // Later dependent changes must not overtake a rejected write.
+        // A permanently rejected record must not freeze unrelated CRM tables.
+        // Preserve ordering only inside the affected table.
+        blockedTables.add(entry.table)
       } catch (error) {
         entry.attempts += 1
         entry.lastError = error instanceof Error ? error.message : String(error)

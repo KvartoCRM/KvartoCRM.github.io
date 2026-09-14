@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
-import { filterRowsForUrl, orderEndpointsForOrigin, prepareOfflinePayload, rewriteRequestUrl } from './offlineTransport.ts'
+import {
+  filterRowsForUrl,
+  mergeRemoteRowsWithQueuedMutations,
+  orderEndpointsForOrigin,
+  prepareOfflinePayload,
+  removeMissingColumnFromQueuedBody,
+  rewriteRequestUrl,
+} from './offlineTransport.ts'
 
 test('Supabase requests keep their path and query when routed through the gateway', () => {
   assert.equal(
@@ -88,4 +95,32 @@ test('offline cache supports trash, text search and combined OR search', () => {
   assert.deepEqual(trash.map(row => row.id), ['2'])
   const search = filterRowsForUrl(rows, 'https://example.test/rest/v1/clients?or=(first_name.ilike.%25%D0%B1%D0%BE%D1%80%25,phone.eq.79000000001)')
   assert.deepEqual(search.map(row => row.id), ['1', '2'])
+})
+
+test('remote rows stay fresh while pending local task changes remain visible', () => {
+  const requestUrl = 'https://example.test/rest/v1/tasks?user_id=eq.u1&deleted_at=is.null&order=due_date.asc'
+  const merged = mergeRemoteRowsWithQueuedMutations(
+    [{ id: 'remote', user_id: 'u1', title: 'С другого устройства', deleted_at: null, due_date: '2026-09-15' }],
+    [{
+      table: 'tasks',
+      method: 'POST',
+      url: 'https://example.test/rest/v1/tasks',
+      body: JSON.stringify({ id: 'local', user_id: 'u1', title: 'С этого устройства', deleted_at: null, due_date: '2026-09-14' }),
+      createdAt: 1,
+    }],
+    'tasks',
+    requestUrl,
+  )
+  assert.deepEqual(merged.map(row => row.id), ['local', 'remote'])
+})
+
+test('queue replay removes an unsupported optional column and keeps identity fields', () => {
+  const body = JSON.stringify({ id: 'task-1', user_id: 'u1', title: 'Задача', smart_criteria: {} })
+  const error = JSON.stringify({ message: "Could not find the 'smart_criteria' column of 'tasks' in the schema cache" })
+  assert.deepEqual(JSON.parse(removeMissingColumnFromQueuedBody(body, error)!), {
+    id: 'task-1',
+    user_id: 'u1',
+    title: 'Задача',
+  })
+  assert.equal(removeMissingColumnFromQueuedBody(body, JSON.stringify({ message: "Could not find the 'id' column" })), null)
 })
