@@ -81,7 +81,7 @@ const OfflineSyncStatus = () => {
         ...previous,
         online: false,
         syncing: false,
-        error: syncError instanceof Error ? syncError.message : 'Не удалось связаться с облаком',
+        error: syncError instanceof Error ? syncError.message : 'Не удалось связаться с сервисом',
       }))
     }
   }, [refresh, rememberSuccessfulSync, user])
@@ -167,13 +167,13 @@ const OfflineSyncStatus = () => {
     : status.syncing || status.pending > 0 ? 'syncing' : 'synced'
   const Icon = state === 'offline' ? CloudOff : state === 'syncing' ? RefreshCw : Check
   const label = state === 'offline'
-    ? sessionProblem ? 'Требуется вход' : 'Облако недоступно'
-    : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверяем облако' : 'В облаке'
+    ? sessionProblem ? 'Требуется вход' : 'Синхронизация недоступна'
+    : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверяем связь' : 'Синхронизировано'
   const iconClass = state === 'offline' ? 'text-amber-400' : state === 'syncing' ? 'text-sky-400' : 'text-emerald-400'
 
   return (
     <div className="relative">
-      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Состояние облачной синхронизации" className="lumi-control inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs">
+      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Состояние синхронизации" className="lumi-control inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs">
         <Icon className={`h-4 w-4 ${iconClass} ${status.syncing ? 'animate-spin' : ''}`} />
         <span className="hidden lg:inline">{label}</span>
         {status.pending > 0 && <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-300 lg:hidden">{status.pending}</span>}
@@ -182,7 +182,7 @@ const OfflineSyncStatus = () => {
       <AnchoredPopover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={340} ariaLabel="Состояние облака" className="overflow-y-auto p-4">
         <div className="flex items-start gap-3">
           <div className={`rounded-xl p-3 ${state === 'offline' ? 'bg-amber-500/10' : 'lumi-accent-soft'}`}><Cloud className={`h-5 w-5 ${iconClass}`} /></div>
-          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Локальная копия доступна, но облачные чтение и сохранение сейчас не подтверждены.' : state === 'offline' ? 'Работайте дальше: изменения остаются на устройстве и отправятся после восстановления связи.' : 'Данные этого устройства синхронизируются с вашим защищённым офисом.'}</p></div>
+          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Копия на устройстве доступна, но чтение и сохранение сейчас не подтверждены.' : state === 'offline' ? 'Работайте дальше: изменения остаются на устройстве и отправятся после восстановления связи.' : 'Изменения на этом устройстве синхронизированы.'}</p></div>
         </div>
 
         <div className="lumi-panel-muted mt-4 space-y-3 rounded-xl border p-3 text-xs">
@@ -194,7 +194,7 @@ const OfflineSyncStatus = () => {
         {status.error && <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{status.error}</span></div>}
         {issues.length > 0 && <div className="mt-3 space-y-2"><p className="lumi-muted text-xs font-semibold uppercase tracking-wide">Не отправлено</p>{issues.slice(0, 3).map(issue => { const description = describeQueueIssue(issue); return <div key={issue.id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs"><div className="flex items-center justify-between gap-3"><span className="lumi-text font-semibold">{description.entity}</span><span className="lumi-muted">Попыток: {issue.attempts}</span></div><p className="mt-1 text-amber-200">{description.reason}</p><p className="lumi-muted mt-1">Сохранено на устройстве {new Date(issue.createdAt).toLocaleString('ru-RU')}</p></div> })}</div>}
         <button type="button" disabled={status.syncing || !navigator.onLine} onClick={() => void synchronize(true)} className="lumi-gradient-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${status.syncing ? 'animate-spin' : ''}`} />{status.pending ? 'Повторить отправку' : 'Проверить синхронизацию'}</button>
-        <p className="lumi-muted mt-3 text-[0.7rem] leading-5">KvartoCRM не должен требовать VPN. Если интернет есть, но облако недоступно, приложение использует локальную копию и повторяет отправку автоматически.</p>
+        <p className="lumi-muted mt-3 text-[0.7rem] leading-5">KvartoCRM не должен требовать VPN. Если интернет есть, но синхронизация недоступна, приложение использует копию на устройстве и повторяет отправку автоматически.</p>
       </AnchoredPopover>
     </div>
   )

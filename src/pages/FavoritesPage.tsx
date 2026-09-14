@@ -29,7 +29,7 @@ const FavoritesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="lumi-text text-3xl font-bold">Избранное</h1><p className="lumi-muted mt-2">Важные объекты и контакты из облачной базы.</p></div><Star className="h-8 w-8 fill-amber-400 text-amber-400" /></div>
+      <div className="flex items-center justify-between"><div><h1 className="lumi-text text-3xl font-bold">Избранное</h1><p className="lumi-muted mt-2">Важные объекты и контакты вашей рабочей базы.</p></div><Star className="h-8 w-8 fill-amber-400 text-amber-400" /></div>
       {(actionError || favoritesQuery.error) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-800/50 bg-red-950/25 px-4 py-3 text-sm text-red-300"><span>{actionError || 'Не удалось загрузить избранное. Повторите попытку.'}</span>{favoritesQuery.error && <button type="button" onClick={() => void favoritesQuery.refetch()} className="font-semibold underline">Повторить</button>}</div>}
       <div className="lumi-control flex w-fit rounded-xl p-1">
         <button type="button" onClick={() => setActiveTab('properties')} className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold ${activeTab === 'properties' ? 'lumi-panel lumi-text shadow-sm' : 'lumi-muted'}`}><Building2 className="h-4 w-4" />Объекты · {counts.properties}</button>

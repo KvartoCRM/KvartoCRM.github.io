@@ -259,7 +259,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         void sessionRequest.then(async ({ data, error: sessionError }) => {
           if (!mounted) return
           if (sessionError) {
-            setError('Не удалось проверить облачную сессию')
+            setError('Не удалось проверить сессию')
             if (isTemporarySessionError(sessionError) && restoreCachedUser()) return
           }
           await loadUser(data.session?.user ?? null)
@@ -268,7 +268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       const { data, error: sessionError } = startup.result
       if (sessionError) {
-        setError('Не удалось проверить облачную сессию')
+        setError('Не удалось проверить сессию')
         if (isTemporarySessionError(sessionError) && restoreCachedUser()) {
           setIsLoading(false)
           return
@@ -281,7 +281,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void loadSession().catch(() => {
       if (!mounted) return
       restoreCachedUser()
-      setError('Не удалось проверить облачную сессию')
+      setError('Не удалось проверить сессию')
       setIsLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -575,7 +575,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950 text-gray-400">
-        Подключаем облачный офис…
+        Подключаем рабочий офис…
       </div>
     )
   }

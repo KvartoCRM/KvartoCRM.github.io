@@ -190,3 +190,40 @@ test('queue replay repairs payloads created against a newer task schema', async 
   assert.equal('smart_criteria' in postedBodies[1], false)
   assert.equal(postedBodies[1]?.id, 'task-1')
 })
+
+test('a rejected legacy record does not block a newer record in the same table', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
+
+  const userId = '00000000-0000-4000-8000-000000000031'
+  const acceptedIds: string[] = []
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    if (request.method !== 'POST') return Response.json([])
+    const body = JSON.parse(await request.text()) as { id: string }
+    if (body.id === 'legacy-task') {
+      return Response.json({ message: 'Legacy record is permanently rejected' }, { status: 422 })
+    }
+    acceptedIds.push(body.id)
+    return Response.json(body, { status: 201 })
+  }) as typeof fetch
+
+  const { createOfflineFetch, configureOfflineSync, flushOfflineQueue, getOfflineQueueCount, setOfflineSession } = await import(`./offlineTransport.ts?poison-record=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const headers = { authorization: `Bearer ${jwtFor(userId)}`, apikey: 'public-key', 'content-type': 'application/json' }
+  for (const id of ['legacy-task', 'new-task']) {
+    await offlineFetch('https://direct.example/rest/v1/tasks', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id, user_id: userId, title: id }),
+    })
+  }
+  assert.equal(await getOfflineQueueCount(userId), 2)
+
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: true })
+  configureOfflineSync(async () => ({ userId, accessToken: jwtFor(userId) }))
+  assert.equal(await flushOfflineQueue(), 1)
+  assert.equal(await getOfflineQueueCount(userId), 1)
+  assert.deepEqual(acceptedIds, ['new-task'])
+})

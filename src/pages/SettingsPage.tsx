@@ -202,7 +202,7 @@ const SettingsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="lumi-text text-3xl font-bold">Настройки</h1>
-          <p className="lumi-muted mt-2">Параметры сохраняются в вашем облачном профиле.</p>
+          <p className="lumi-muted mt-2">Параметры применяются на всех ваших устройствах.</p>
         </div>
         <Settings className="lumi-muted h-8 w-8" />
       </div>

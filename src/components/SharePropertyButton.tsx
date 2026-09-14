@@ -20,8 +20,8 @@ const SharePropertyButton = ({ property }: { property: Property }) => {
       if (!navigator.onLine) throw new Error('Публичную ссылку можно создать после подключения к интернету')
       await flushOfflineQueue()
       await flushOfflineFiles(user.id)
-      if (await getOfflineQueueCount(user.id)) throw new Error('Сначала дождитесь синхронизации изменений с облаком')
-      if (await getOfflineFileQueueCount(user.id)) throw new Error('Сначала дождитесь загрузки фотографий в облако')
+      if (await getOfflineQueueCount(user.id)) throw new Error('Сначала дождитесь синхронизации изменений')
+      if (await getOfflineFileQueueCount(user.id)) throw new Error('Сначала дождитесь загрузки фотографий')
       const files = await listCrmFiles({ userId: user.id, bucket: 'crm-images', propertyId: property.id })
       const urls = await createSignedFileUrls(files, 365 * 24 * 3600)
       const snapshot = {

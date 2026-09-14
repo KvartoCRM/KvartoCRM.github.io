@@ -3,12 +3,24 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import {
   filterRowsForUrl,
+  clearWorkspaceNetworkRefresh,
+  isWorkspaceNetworkRefreshForced,
   mergeRemoteRowsWithQueuedMutations,
   orderEndpointsForOrigin,
   prepareOfflinePayload,
+  requestWorkspaceNetworkRefresh,
   removeMissingColumnFromQueuedBody,
   rewriteRequestUrl,
 } from './offlineTransport.ts'
+
+test('manual workspace refresh temporarily forces cloud reads', () => {
+  clearWorkspaceNetworkRefresh()
+  assert.equal(isWorkspaceNetworkRefreshForced(), false)
+  requestWorkspaceNetworkRefresh(10_000)
+  assert.equal(isWorkspaceNetworkRefreshForced(), true)
+  clearWorkspaceNetworkRefresh()
+  assert.equal(isWorkspaceNetworkRefreshForced(), false)
+})
 
 test('Supabase requests keep their path and query when routed through the gateway', () => {
   assert.equal(

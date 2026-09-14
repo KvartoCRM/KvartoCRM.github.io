@@ -14,9 +14,9 @@ const DocumentsPage = () => (
     <div className="lumi-panel-muted lumi-border flex items-start gap-3 rounded-2xl border p-4">
       <ShieldCheck className="lumi-accent-text mt-0.5 h-5 w-5 shrink-0" />
       <div>
-        <p className="lumi-text font-medium">Приватное облачное хранилище</p>
+        <p className="lumi-text font-medium">Защищённые документы</p>
         <p className="lumi-muted text-sm">
-          Файлы находятся в закрытом bucket Supabase и открываются только по временной защищённой ссылке.
+          Файлы доступны только из вашего аккаунта и открываются по временной защищённой ссылке.
         </p>
       </div>
       <FileText className="lumi-muted ml-auto hidden h-6 w-6 sm:block" />

@@ -110,11 +110,11 @@ const PropertiesPage = () => {
           {filteredProperties.map((prop) => (
             <div
               key={prop.id}
-              className="lumi-content-auto bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all"
+              className="lumi-content-auto lumi-showcase bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all"
             >
               <div className="flex h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30">
                 {prop.coverUrl ? <img src={prop.coverUrl} alt={`Главное фото: ${prop.address}`} loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <div className="text-center">
-                  <Building2 className="w-12 h-12 mx-auto mb-2 text-gray-500" />
+                  <Building2 className="lumi-icon-reactive w-12 h-12 mx-auto mb-2 text-gray-500" />
                   <p className="text-sm text-gray-500">Фото нет</p>
                 </div>}
               </div>

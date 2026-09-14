@@ -57,7 +57,7 @@ const EntityFilesPanel = ({ clientId, propertyId, title = 'Документы', 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="lumi-text flex items-center gap-2 text-lg font-semibold"><Paperclip className="h-5 w-5" />{title}</h3>
-          <p className="lumi-muted mt-1 text-sm">Приватное хранилище Supabase · до 25 МБ на файл</p>
+          <p className="lumi-muted mt-1 text-sm">Доступ только из вашего аккаунта · до 25 МБ на файл</p>
         </div>
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="lumi-gradient-button inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}

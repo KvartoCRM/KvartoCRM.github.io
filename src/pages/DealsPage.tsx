@@ -226,7 +226,7 @@ const DealsPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="lumi-text text-3xl font-bold">Сделки</h1>
-          <p className="lumi-muted mt-1 text-sm">Объекты и участники выбираются из вашей облачной базы.</p>
+          <p className="lumi-muted mt-1 text-sm">Объекты и участники выбираются из вашей рабочей базы.</p>
         </div>
         <button type="button" onClick={() => openModal()} className="lumi-gradient-button flex items-center gap-2 rounded-xl px-5 py-3 font-semibold">
           <Plus className="h-5 w-5" />Новая сделка

@@ -38,7 +38,7 @@ export function useCrmOverview(enabled: boolean) {
     data: data ?? initialValue,
     loading: isPending && enabled,
     error: queryError
-      ? 'Облако сейчас не ответило. Локальные данные остаются на устройстве; нажмите «Обновить», когда связь восстановится.'
+      ? 'Сервис сейчас не ответил. Показана копия с устройства; нажмите «Обновить», когда связь восстановится.'
       : null,
     reload,
   }

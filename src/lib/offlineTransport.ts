@@ -88,10 +88,21 @@ let syncPromise: Promise<number> | null = null
 let syncTimer: number | null = null
 let transportConfig: { url: string; fallback?: string; apiKey: string } | null = null
 let activeUserId: string | null = null
+let forcedNetworkRefreshUntil = 0
 
 export const setOfflineSession = (userId: string | null) => {
   activeUserId = userId
 }
+
+export const requestWorkspaceNetworkRefresh = (durationMs = 30_000) => {
+  forcedNetworkRefreshUntil = Math.max(forcedNetworkRefreshUntil, Date.now() + durationMs)
+}
+
+export const clearWorkspaceNetworkRefresh = () => {
+  forcedNetworkRefreshUntil = 0
+}
+
+export const isWorkspaceNetworkRefreshForced = (now = Date.now()) => now < forcedNetworkRefreshUntil
 
 const hasIndexedDb = () => typeof indexedDB !== 'undefined'
 const isOnline = () => typeof navigator === 'undefined' || navigator.onLine
@@ -605,7 +616,8 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
     if (isOnline()) {
       const cached = await findCachedResponse(request, userId, table)
       const networkRequest = fetchWithFallback(request.clone(), READ_TIMEOUT_MS, fallbackUrl)
-      if (cached) {
+      const forceNetworkRead = method === 'GET' && isWorkspaceNetworkRefreshForced()
+      if (cached && !forceNetworkRead) {
         const cachedBody = await cached.clone().text()
         void networkRequest.then(response => mergePendingMutationsIntoResponse(request, response, userId, table)).then(async response => {
           if (!response.ok) return
@@ -620,7 +632,7 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
             online: false,
             pending: await getOfflineQueueCount(userId),
             syncing: false,
-            error: 'Облако недоступно — используется копия на устройстве',
+            error: 'Синхронизация недоступна — используется копия на устройстве',
           })
         })
         return cached
@@ -632,11 +644,13 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
           emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
         }
         if (response.status < 500) return response
-      } catch {
+      } catch (error) {
         request.signal.throwIfAborted()
+        if (forceNetworkRead) throw error
         // Fall through to the device-local snapshot.
       }
-      emitStatus({ online: false, pending: await getOfflineQueueCount(userId), syncing: false, error: 'Облако недоступно — используется копия на устройстве' })
+      if (forceNetworkRead) throw new TypeError('Не удалось получить свежие данные из облака')
+      emitStatus({ online: false, pending: await getOfflineQueueCount(userId), syncing: false, error: 'Синхронизация недоступна — используется копия на устройстве' })
       if (cached) return cached
     }
     return await findCachedResponse(request, userId, table)
@@ -697,6 +711,24 @@ const replayUrl = (entry: QueuedRequest) => {
   const url = new URL(entry.url)
   if (!url.searchParams.has('on_conflict')) url.searchParams.set('on_conflict', conflictFields[entry.table] ?? 'id')
   return url.toString()
+}
+
+// Ordering is only relevant for operations that affect the same record. A
+// rejected legacy record must not prevent newer records from synchronizing.
+const queuedEntityKey = (entry: QueuedRequest) => {
+  try {
+    const url = new URL(entry.url)
+    const idFilter = url.searchParams.get('id')
+    if (idFilter?.startsWith('eq.')) return `${entry.table}:${idFilter.slice(3)}`
+    if (entry.body) {
+      const parsed = JSON.parse(entry.body)
+      const row = Array.isArray(parsed) ? parsed[0] : parsed
+      if (row && typeof row === 'object' && typeof row.id === 'string') return `${entry.table}:${row.id}`
+    }
+  } catch {
+    // Fall back to table-level ordering for malformed legacy queue entries.
+  }
+  return `${entry.table}:*`
 }
 
 const protectedQueueColumns = new Set(['id', 'user_id'])
@@ -763,10 +795,12 @@ export const flushOfflineQueue = async () => {
       .sort((a, b) => a.createdAt - b.createdAt)
     emitStatus({ online: true, pending: entries.length, syncing: entries.length > 0 })
     let synced = 0
-    const blockedTables = new Set<string>()
+    const blockedEntities = new Set<string>()
+    let transportFailures = 0
 
     for (const entry of entries.slice(0, 50)) {
-      if (blockedTables.has(entry.table)) continue
+      const entityKey = queuedEntityKey(entry)
+      if (blockedEntities.has(entityKey) || blockedEntities.has(`${entry.table}:*`)) continue
       try {
         const currentSession = await sessionProvider()
         if (currentSession.userId !== session.userId || !currentSession.accessToken) break
@@ -783,23 +817,32 @@ export const flushOfflineQueue = async () => {
           synced += 1
           continue
         }
-        if (response.status === 401 || response.status === 403 || response.status >= 500) {
+        if (response.status === 401 || response.status === 403) {
           entry.attempts += 1
           entry.lastError = `HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`
           await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
           break
         }
+        if (response.status >= 500) {
+          entry.attempts += 1
+          entry.lastError = `HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`
+          await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
+          blockedEntities.add(entityKey)
+          transportFailures += 1
+          if (transportFailures >= 3) break
+          continue
+        }
         entry.attempts += 1
         entry.lastError = `HTTP ${response.status}: ${(await response.text()).slice(0, 240)}`
         await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
-        // A permanently rejected record must not freeze unrelated CRM tables.
-        // Preserve ordering only inside the affected table.
-        blockedTables.add(entry.table)
+        blockedEntities.add(entityKey)
       } catch (error) {
         entry.attempts += 1
         entry.lastError = error instanceof Error ? error.message : String(error)
         await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry)).catch(() => undefined)
-        break
+        blockedEntities.add(entityKey)
+        transportFailures += 1
+        if (transportFailures >= 3) break
       }
     }
 
@@ -807,6 +850,7 @@ export const flushOfflineQueue = async () => {
     emitStatus({ online: pending === 0 || synced > 0 ? isOnline() : false, pending, syncing: false, error: pending > 0 && synced === 0 ? 'Синхронизация будет повторена' : undefined })
     if (synced > 0 && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('lumicrm:data-synced', { detail: { synced, pending } }))
+      if (entries.length > 50 && pending > 0) window.setTimeout(() => void flushOfflineQueue(), 250)
     }
     return synced
   })().finally(() => {

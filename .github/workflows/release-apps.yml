@@ -55,7 +55,14 @@ jobs:
         run: |
           export LUMICRM_VERSION_NAME="${GITHUB_REF_NAME#app-v}"
           chmod +x ./gradlew
-          ./gradlew assembleRelease
+          for attempt in 1 2 3; do
+            ./gradlew assembleRelease && exit 0
+            if [ "$attempt" -lt 3 ]; then
+              echo "Gradle download/build failed, retrying ($attempt/3)..."
+              sleep $((attempt * 15))
+            fi
+          done
+          exit 1
       - run: cp android/app/build/outputs/apk/release/app-release.apk KvartoCRM-Android.apk
       - uses: actions/upload-artifact@v7
         with:

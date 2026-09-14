@@ -229,7 +229,7 @@ export const restoreWorkspaceBackup = async (
 ): Promise<WorkspaceRestoreResult> => {
   const backup = parseWorkspaceBackup(input)
   const online = await checkCloudConnection()
-  if (!online) throw new Error('Для восстановления нужна связь с облаком. Подключитесь к интернету и повторите попытку.')
+  if (!online) throw new Error('Для восстановления нужна связь с сервисом. Подключитесь к интернету и повторите попытку.')
 
   if (backup.profile) {
     const { error } = await supabase.from('profiles').upsert({ ...backup.profile, id: userId })

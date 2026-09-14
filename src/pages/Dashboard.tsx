@@ -114,10 +114,12 @@ const Dashboard = ({ children }: DashboardProps) => {
     }
     window.addEventListener('lumicrm:data-synced', refreshAfterSync)
     window.addEventListener('lumicrm:remote-data-changed', refreshAfterSync)
+    window.addEventListener('lumicrm:workspace-refreshed', refreshAfterSync)
     return () => {
       window.clearTimeout(timer)
       window.removeEventListener('lumicrm:data-synced', refreshAfterSync)
       window.removeEventListener('lumicrm:remote-data-changed', refreshAfterSync)
+      window.removeEventListener('lumicrm:workspace-refreshed', refreshAfterSync)
     }
   }, [])
 
@@ -209,11 +211,10 @@ const Dashboard = ({ children }: DashboardProps) => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="lumi-accent-text mb-1 text-sm font-medium">Ваш личный облачный офис</p>
+          <p className="lumi-accent-text mb-1 text-sm font-medium">Ваш офис недвижимости</p>
           <h1 className="lumi-text text-3xl font-bold">
             Добро пожаловать, {user?.firstName || 'в ваш офис'}
           </h1>
-          <p className="lumi-muted mt-2">Все клиенты, задачи и события загружаются из Supabase.</p>
         </div>
         <button
           type="button"
@@ -387,7 +388,7 @@ const Dashboard = ({ children }: DashboardProps) => {
           <Link to="/" className="flex items-center gap-3">
             <BrandLogo />
           </Link>
-          <p className="lumi-muted mt-3 text-xs uppercase tracking-[0.18em]">Ваш личный облачный офис</p>
+          <p className="lumi-muted mt-3 text-xs uppercase tracking-[0.18em]">Ваш офис недвижимости</p>
         </div>
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
           {desktopNavigationGroups.map(group => (
