@@ -4,7 +4,7 @@ import { onRequest as handlePagesRequest } from './pages.js'
 import { handleGatewayRequest } from './worker.js'
 
 const gateway = 'https://lumicrm-gateway.denzotrail.workers.dev'
-const origin = 'https://lumi-crm.github.io'
+const origin = 'https://kvartocrm.github.io'
 const pagesOrigin = 'https://lumicrm.pages.dev'
 
 test('network probes return bounded incompressible data without upstream access', async () => {

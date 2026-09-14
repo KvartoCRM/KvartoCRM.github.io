@@ -17,8 +17,6 @@ body{font:16px/1.5 system-ui,sans-serif;background:#0b1220;color:#e5eaf2;margin:
 <script>
 // A publishable browser key, identical to the application configuration.
 const apiKey = '__LUMICRM_DIAGNOSTIC_PUBLIC_KEY__';
-const worker = 'https://lumicrm-gateway.denzotrail.workers.dev';
-const pages = 'https://lumicrm.pages.dev';
 const direct = 'https://flwsglkkarikekkopdbu.supabase.co';
 const startButton = document.getElementById('start');
 const copyButton = document.getElementById('copy');
@@ -29,16 +27,11 @@ const mode = document.getElementById('mode');
 const healthHeaders = { apikey: apiKey };
 const appHeaders = { apikey: apiKey, 'accept-profile': 'public', 'x-client-info': 'lumicrm-network-check' };
 const probes = [
-  { name: 'GitHub: контроль загрузки', url: location.origin + '/manifest.webmanifest' },
-  { name: 'Worker: короткий ответ', url: worker + '/__health', json: true },
-  { name: 'Worker: 1 КиБ', url: worker + '/__health?bytes=1024', size: 1024 },
-  { name: 'Worker: 64 КиБ', url: worker + '/__health?bytes=65536', size: 65536 },
-  { name: 'Worker → Supabase: сервер входа', url: worker + '/auth/v1/health', headers: healthHeaders, json: true },
-  { name: 'Worker: заголовки приложения', url: worker + '/auth/v1/health', headers: appHeaders, json: true },
-  { name: 'Pages: короткий ответ', url: pages + '/__health', json: true },
-  { name: 'Pages: 64 КиБ', url: pages + '/__health?bytes=65536', size: 65536 },
-  { name: 'Pages → Supabase: сервер входа', url: pages + '/auth/v1/health', headers: healthHeaders, json: true },
+  { name: 'KvartoCRM: оболочка приложения', url: location.origin + '/' },
+  { name: 'KvartoCRM: манифест', url: location.origin + '/manifest.webmanifest' },
+  { name: 'KvartoCRM: автономный режим', url: location.origin + '/sw.js' },
   { name: 'Supabase напрямую: сервер входа', url: direct + '/auth/v1/health', headers: healthHeaders, json: true },
+  { name: 'Supabase напрямую: заголовки приложения', url: direct + '/auth/v1/health', headers: appHeaders, json: true },
 ];
 async function probe(item) {
   const controller = new AbortController();
@@ -83,7 +76,7 @@ async function probe(item) {
 startButton.onclick = async () => {
   startButton.disabled = true; copyButton.disabled = true; mode.disabled = true;
   list.replaceChildren();
-  const run = { diagnosticVersion: 1, time: new Date().toISOString(), mode: mode.value, results: [] };
+  const run = { diagnosticVersion: 2, site: location.origin, time: new Date().toISOString(), mode: mode.value, results: [] };
   try {
     for (const item of probes) {
       statusLine.textContent = 'Проверка ' + (run.results.length + 1) + '/' + probes.length + ': ' + item.name;

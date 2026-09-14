@@ -1,5 +1,5 @@
-export const APP_DOWNLOAD_MIRROR = 'https://lumi-crm.github.io/downloads'
-export const APP_RELEASE_PAGE = 'https://github.com/Lumi-CRM/Lumi-CRM.github.io/releases/latest'
+export const APP_DOWNLOAD_MIRROR = 'https://kvartocrm.github.io/downloads'
+export const APP_RELEASE_PAGE = 'https://github.com/KvartoCRM/KvartoCRM.github.io/releases/latest'
 export const ANDROID_APK_URL = `${APP_DOWNLOAD_MIRROR}/KvartoCRM-Android.apk`
 export const WINDOWS_INSTALLER_URL = `${APP_DOWNLOAD_MIRROR}/KvartoCRM-Windows-Setup.exe`
 

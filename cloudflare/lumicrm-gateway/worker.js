@@ -1,5 +1,6 @@
 const UPSTREAM = 'https://flwsglkkarikekkopdbu.supabase.co'
 const ALLOWED_ORIGINS = new Set([
+  'https://kvartocrm.github.io',
   'https://lumi-crm.github.io',
   'https://lumicrm.pages.dev',
   'https://localhost', // Packaged Capacitor Android app.

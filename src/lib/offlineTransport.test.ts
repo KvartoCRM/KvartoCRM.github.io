@@ -41,7 +41,7 @@ test('a legacy gateway configuration can prefer its same-origin endpoint', () =>
 
 test('a legacy gateway configuration keeps its primary outside Pages', () => {
   assert.deepEqual(
-    orderEndpointsForOrigin('https://worker.example', 'https://lumicrm.pages.dev', 'https://lumi-crm.github.io'),
+    orderEndpointsForOrigin('https://worker.example', 'https://lumicrm.pages.dev', 'https://kvartocrm.github.io'),
     ['https://worker.example', 'https://lumicrm.pages.dev'],
   )
   assert.deepEqual(
@@ -56,7 +56,7 @@ test('production uses direct Supabase first on GitHub, Pages and packaged apps',
   const fallback = config.match(/^VITE_SUPABASE_FALLBACK_URL=(.+)$/m)?.[1].trim()
   assert.equal(primary, 'https://flwsglkkarikekkopdbu.supabase.co')
   assert.equal(fallback, undefined)
-  for (const origin of ['https://lumi-crm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
+  for (const origin of ['https://kvartocrm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
     assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, undefined])
   }
   assert.match(config, /^VITE_SUPABASE_PROJECT_REF=flwsglkkarikekkopdbu\s*$/m)

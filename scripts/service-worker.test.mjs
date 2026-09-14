@@ -4,7 +4,7 @@ import test from 'node:test'
 import vm from 'node:vm'
 
 const script = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8')
-const origin = 'https://lumicrm.pages.dev'
+const origin = 'https://kvartocrm.github.io'
 
 function harness() {
   const listeners = {}

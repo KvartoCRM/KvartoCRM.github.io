@@ -15,6 +15,11 @@ export default defineConfig({
         assetFileNames: assetInfo => assetInfo.name === 'index.css'
           ? 'assets/index.css'
           : 'assets/[name]-[hash][extname]',
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          'motion-vendor': ['framer-motion'],
+        },
       },
     },
   },

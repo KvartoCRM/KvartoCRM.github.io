@@ -40,7 +40,7 @@ const SharePropertyButton = ({ property }: { property: Property }) => {
         user_id: user.id, property_id: property.id, snapshot, active: true,
       }, { onConflict: 'user_id,property_id' }).select('slug').setHeader('x-lumicrm-network-only', 'true').single()
       if (saveError) throw saveError
-      const url = `https://lumi-crm.github.io/p/${data.slug}`
+      const url = `https://kvartocrm.github.io/p/${data.slug}`
       await navigator.clipboard.writeText(url)
       setCopied(true)
     } catch (shareError) {
