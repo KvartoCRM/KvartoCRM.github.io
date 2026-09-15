@@ -74,6 +74,29 @@ test('a successful table mutation is acknowledged from headers when its empty bo
   assert.ok(Date.now() - started < 1000)
 })
 
+test('a network-only read bypasses HTTP cache and refreshes the offline snapshot', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
+  const userId = '00000000-0000-4000-8000-000000000052'
+  let requestCache: RequestCache | undefined
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    requestCache = request.cache
+    return Response.json([{ id: 'call-1', user_id: userId, external_key: 'call-log:call-1' }])
+  }) as typeof fetch
+
+  const { createOfflineFetch, setOfflineSession } = await import(`./offlineTransport.ts?network-only=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const url = `https://direct.example/rest/v1/events?user_id=eq.${userId}&external_key=like.call-log%3A%25`
+  const headers = { authorization: `Bearer ${jwtFor(userId)}`, 'x-lumicrm-network-only': 'true' }
+  assert.deepEqual(await (await offlineFetch(url, { headers })).json(), [{ id: 'call-1', user_id: userId, external_key: 'call-log:call-1' }])
+  assert.equal(requestCache, 'no-store')
+
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: false })
+  assert.deepEqual(await (await offlineFetch(url, { headers: { authorization: `Bearer ${jwtFor(userId)}` } })).json(), [{ id: 'call-1', user_id: userId, external_key: 'call-log:call-1' }])
+})
+
 test('a queued call survives an endpoint change and replays once through the new primary', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })

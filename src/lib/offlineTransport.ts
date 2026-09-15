@@ -626,7 +626,8 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
   const method = request.method.toUpperCase()
   transportConfig = { url: supabaseUrl, fallback: fallbackUrl, apiKey: request.headers.get('apikey') ?? '' }
   if (networkOnly || method === 'HEAD') {
-    let response = await fetchWithFallback(request, INTERACTIVE_NETWORK_TIMEOUT_MS, fallbackUrl)
+    const forcedRequest = method === 'GET' ? new Request(request, { cache: 'no-store' }) : request
+    let response = await fetchWithFallback(forcedRequest, INTERACTIVE_NETWORK_TIMEOUT_MS, fallbackUrl)
     if (networkOnly && method === 'GET' && response.ok) {
       response = await mergePendingMutationsIntoResponse(request, response, userId, table)
       await cacheResponse(request, response, userId, table)
@@ -643,8 +644,10 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
   if (method === 'GET' || method === 'HEAD') {
     if (isOnline()) {
       const cached = await findCachedResponse(request, userId, table)
-      const networkRequest = fetchWithFallback(request.clone(), READ_TIMEOUT_MS, fallbackUrl)
       const forceNetworkRead = method === 'GET' && isWorkspaceNetworkRefreshForced()
+      const networkRequest = fetchWithFallback(new Request(request, {
+        cache: forceNetworkRead ? 'no-store' : request.cache,
+      }), READ_TIMEOUT_MS, fallbackUrl)
       if (cached && !forceNetworkRead) {
         const cachedBody = await cached.clone().text()
         void networkRequest.then(response => mergePendingMutationsIntoResponse(request, response, userId, table)).then(async response => {
