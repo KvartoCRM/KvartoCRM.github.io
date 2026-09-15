@@ -140,8 +140,12 @@ const CallsPage = () => {
     }
     try {
       await saveCall(payload, editingId || undefined)
-    } catch {
-      setError(editingId ? 'Не удалось обновить звонок' : 'Не удалось сохранить звонок')
+    } catch (saveError) {
+      const details = saveError && typeof saveError === 'object' && 'message' in saveError
+        ? String(saveError.message)
+        : ''
+      const action = editingId ? 'Не удалось обновить звонок' : 'Не удалось сохранить звонок'
+      setError(details ? `${action}: ${details}` : action)
       return
     }
     closeForm(true)
