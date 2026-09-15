@@ -29,10 +29,14 @@ export const saveCallActivity = async (userId: string, input: CallActivityInput,
     notes: encodeCallEvent(input),
     external_key: callEventKey(id),
   }
-  const result = await supabase.from('events').upsert({ ...payload, id }, { onConflict: 'id' })
-    .select('id,title,notes,external_key').single()
+  // Use the same mutation path as calendar events. On some mobile/regional
+  // routes PostgREST sends the success headers immediately but stalls while
+  // streaming `return=representation`; waiting for that body made a locally
+  // optimistic call appear saved even though it later fell out of sync.
+  const result = callId
+    ? await supabase.from('events').update(payload).eq('id', callId).eq('user_id', userId)
+    : await supabase.from('events').insert({ ...payload, id })
   if (result.error) throw result.error
-  if (!result.data?.id) throw new Error('Сервер не подтвердил сохранение звонка')
   return { id, input }
 }
 
