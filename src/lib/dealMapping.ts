@@ -1,5 +1,5 @@
 import type { Deal } from '../types'
-import { indexDealFinance } from './dealFinance.ts'
+import { indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance.ts'
 import { indexDealParticipants, participantIdsWithLegacyFallback, type DealParticipantRow } from './dealParticipants.ts'
 
 export type DealUpsertInput = {
@@ -45,6 +45,7 @@ export const mapDealRows = (
     const participants = participantsByDeal.get(id)
     const buyerIds = participantIdsWithLegacyFallback(participants?.buyerIds, typeof row.buyer_id === 'string' ? row.buyer_id : undefined)
     const ownerIds = participantIdsWithLegacyFallback(participants?.ownerIds)
+    const finance = mergeDealFinance(financeByDeal.get(id), readDealFinance(row))
     return {
       id,
       userId: typeof row.user_id === 'string' ? row.user_id : undefined,
@@ -54,8 +55,8 @@ export const mapDealRows = (
       ownerId: ownerIds[0],
       ownerIds,
       price: optionalNumber(row.price),
-      agencyIncome: financeByDeal.get(id)?.agencyIncome,
-      agentIncome: financeByDeal.get(id)?.agentIncome,
+      agencyIncome: finance.agencyIncome,
+      agentIncome: finance.agentIncome,
       expenses: optionalNumber(row.expenses) ?? 0,
       stage: row.stage === 'documents' || row.stage === 'approval' || row.stage === 'registration' || row.stage === 'settlement' || row.stage === 'completed' || row.stage === 'lost'
         ? row.stage

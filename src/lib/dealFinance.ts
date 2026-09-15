@@ -8,6 +8,8 @@ export type DealFinance = {
 export type DealFinanceActivity = {
   external_key?: string | null
   metadata?: Record<string, unknown> | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 const optionalMoney = (value: unknown) => {
@@ -18,16 +20,58 @@ const optionalMoney = (value: unknown) => {
 
 export const dealFinanceKey = (dealId: string) => `${DEAL_FINANCE_PREFIX}${dealId}`
 
-export const readDealFinance = (metadata?: Record<string, unknown> | null): DealFinance => ({
-  agencyIncome: optionalMoney(metadata?.agency_income),
-  agentIncome: optionalMoney(metadata?.agent_income),
+const firstMoney = (...values: unknown[]) => {
+  for (const value of values) {
+    const parsed = optionalMoney(value)
+    if (parsed !== undefined) return parsed
+  }
+  return undefined
+}
+
+const nestedRecord = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value)
+  ? value as Record<string, unknown>
+  : undefined
+
+export const readDealFinance = (input?: object | null): DealFinance => {
+  const source = input as Record<string, unknown> | undefined
+  const metadata = nestedRecord(source?.metadata) ?? source
+  const finance = nestedRecord(metadata?.finance)
+  return {
+    agencyIncome: firstMoney(
+      metadata?.agency_income,
+      metadata?.agencyIncome,
+      finance?.agency_income,
+      finance?.agencyIncome,
+      source?.agency_income,
+      source?.agencyIncome,
+    ),
+    agentIncome: firstMoney(
+      metadata?.agent_income,
+      metadata?.agentIncome,
+      finance?.agent_income,
+      finance?.agentIncome,
+      source?.agent_income,
+      source?.agentIncome,
+    ),
+  }
+}
+
+export const mergeDealFinance = (preferred?: DealFinance, fallback?: DealFinance): DealFinance => ({
+  agencyIncome: preferred?.agencyIncome ?? fallback?.agencyIncome,
+  agentIncome: preferred?.agentIncome ?? fallback?.agentIncome,
 })
 
 export const indexDealFinance = (activities: DealFinanceActivity[]) => {
   const result = new Map<string, DealFinance>()
-  for (const activity of activities) {
+  const ordered = [...activities].sort((left, right) => {
+    const leftTime = Date.parse(String(left.updated_at || left.created_at || '')) || 0
+    const rightTime = Date.parse(String(right.updated_at || right.created_at || '')) || 0
+    return leftTime - rightTime
+  })
+  for (const activity of ordered) {
     if (!activity.external_key?.startsWith(DEAL_FINANCE_PREFIX)) continue
-    result.set(activity.external_key.slice(DEAL_FINANCE_PREFIX.length), readDealFinance(activity.metadata))
+    const dealId = activity.external_key.slice(DEAL_FINANCE_PREFIX.length)
+    result.set(dealId, mergeDealFinance(readDealFinance(activity), result.get(dealId)))
   }
   return result
 }

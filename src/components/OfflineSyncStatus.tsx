@@ -22,6 +22,7 @@ const OfflineSyncStatus = () => {
   const { user } = useAuth()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const cloudOnlineRef = useRef(navigator.onLine)
+  const delayedOfflineRef = useRef<number | null>(null)
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<OfflineStatus>({ online: navigator.onLine, pending: 0, syncing: navigator.onLine })
   const [issues, setIssues] = useState<OfflineQueueIssue[]>([])
@@ -51,20 +52,23 @@ const OfflineSyncStatus = () => {
     if (!user) return
     setStatus(previous => ({ ...previous, syncing: true, error: undefined }))
     try {
-      const cloudAvailable = await checkCloudConnection()
-      cloudOnlineRef.current = cloudAvailable
-      if (!cloudAvailable) {
-        const pending = await refresh()
-        setStatus(previous => ({ ...previous, online: false, pending, syncing: false, error: 'Интернет есть, но сервер KvartoCRM не отвечает' }))
-        return
-      }
       const cloudSession = await checkCloudSession(user.id)
       if (!cloudSession.valid) {
         cloudOnlineRef.current = false
         const pending = await refresh()
-        setStatus(previous => ({ ...previous, online: false, pending, syncing: false, error: cloudSession.message }))
+        const cloudAvailable = cloudSession.kind === 'network' ? await checkCloudConnection() : true
+        setStatus(previous => ({
+          ...previous,
+          online: false,
+          pending,
+          syncing: false,
+          error: cloudSession.kind === 'network' && !cloudAvailable
+            ? 'Интернет есть, но сервер KvartoCRM не отвечает'
+            : cloudSession.message,
+        }))
         return
       }
+      cloudOnlineRef.current = true
       await flushOfflineQueue()
       await flushOfflineFiles(user.id)
       await warmOfflineWorkspace(user.id, forceWarm)
@@ -94,9 +98,20 @@ const OfflineSyncStatus = () => {
 
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<OfflineStatus>).detail
-      cloudOnlineRef.current = detail.online
-      setStatus(previous => ({ ...previous, ...detail }))
-      if (detail.online && !detail.syncing && detail.pending === 0 && !detail.error) rememberSuccessfulSync()
+      if (detail.online) {
+        if (delayedOfflineRef.current !== null) window.clearTimeout(delayedOfflineRef.current)
+        delayedOfflineRef.current = null
+        cloudOnlineRef.current = true
+        setStatus(previous => ({ ...previous, ...detail }))
+        if (!detail.syncing && detail.pending === 0 && !detail.error) rememberSuccessfulSync()
+      } else {
+        if (delayedOfflineRef.current !== null) window.clearTimeout(delayedOfflineRef.current)
+        delayedOfflineRef.current = window.setTimeout(() => {
+          cloudOnlineRef.current = false
+          setStatus(previous => ({ ...previous, ...detail }))
+          delayedOfflineRef.current = null
+        }, 1_500)
+      }
       void refresh()
     }
     const handleOnline = () => void synchronize(true)
@@ -150,6 +165,7 @@ const OfflineSyncStatus = () => {
       window.removeEventListener('lumicrm:offline-files-changed', refresh)
       window.removeEventListener('lumicrm:data-synced', announceSync)
       window.clearInterval(syncTimer)
+      if (delayedOfflineRef.current !== null) window.clearTimeout(delayedOfflineRef.current)
       if (prefetchHandle) {
         const idleWindow = window as Window & { cancelIdleCallback?: (handle: number) => void }
         if (idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(prefetchHandle)
@@ -167,7 +183,7 @@ const OfflineSyncStatus = () => {
     : status.syncing || status.pending > 0 ? 'syncing' : 'synced'
   const Icon = state === 'offline' ? CloudOff : state === 'syncing' ? RefreshCw : Check
   const label = state === 'offline'
-    ? sessionProblem ? 'Требуется вход' : 'Синхронизация недоступна'
+    ? sessionProblem ? 'Требуется вход' : 'Локальная копия'
     : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверяем связь' : 'Синхронизировано'
   const buttonLabel = state === 'offline'
     ? sessionProblem ? 'Нужен вход' : 'Нет связи'

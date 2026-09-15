@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { configureOfflineSync, createOfflineFetch, orderEndpointsForOrigin } from './offlineTransport'
+import { isNetworkFailure } from './syncDiagnostics'
 
 const [supabaseUrl, supabaseFallbackUrl] = orderEndpointsForOrigin(
   import.meta.env.VITE_SUPABASE_URL,
@@ -39,11 +40,16 @@ export const checkCloudConnection = async () => {
 }
 
 export const checkCloudSession = async (expectedUserId: string) => {
-  if (!navigator.onLine) return { valid: false, message: 'Нет подключения к интернету' }
+  if (!navigator.onLine) return { valid: false, kind: 'network' as const, message: 'Нет подключения к интернету' }
   try {
     const { data, error } = await supabase.auth.getUser()
-    if (error || !data.user || data.user.id !== expectedUserId) {
-      return { valid: false, message: 'Сессия не связана с текущей базой. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
+    if (error) {
+      return isNetworkFailure(error)
+        ? { valid: false, kind: 'network' as const, message: 'Сервис KvartoCRM временно не ответил' }
+        : { valid: false, kind: 'session' as const, message: 'Сессия не связана с текущей базой. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
+    }
+    if (!data.user || data.user.id !== expectedUserId) {
+      return { valid: false, kind: 'session' as const, message: 'Сессия не связана с текущей базой. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
     }
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -51,12 +57,21 @@ export const checkCloudSession = async (expectedUserId: string) => {
       .eq('id', expectedUserId)
       .setHeader('x-lumicrm-network-only', 'true')
       .maybeSingle()
-    if (profileError || !profile) {
-      return { valid: false, message: 'Профиль не найден в текущей базе. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
+    if (profileError) {
+      return isNetworkFailure(profileError)
+        ? { valid: false, kind: 'network' as const, message: 'Сервис KvartoCRM временно не ответил' }
+        : { valid: false, kind: 'session' as const, message: 'Профиль не найден в текущей базе. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
     }
-    return { valid: true, message: '' }
-  } catch {
-    return { valid: false, message: 'Не удалось проверить сессию в текущей базе.' }
+    if (!profile) {
+      return { valid: false, kind: 'session' as const, message: 'Профиль не найден в текущей базе. Сначала сохраните резервную копию, затем войдите в аккаунт заново.' }
+    }
+    return { valid: true, kind: 'valid' as const, message: '' }
+  } catch (error) {
+    return {
+      valid: false,
+      kind: isNetworkFailure(error) ? 'network' as const : 'session' as const,
+      message: isNetworkFailure(error) ? 'Сервис KvartoCRM временно не ответил' : 'Не удалось проверить сессию в текущей базе.',
+    }
   }
 }
 

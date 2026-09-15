@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kvartocrm-shell-v33'
+const CACHE_NAME = 'kvartocrm-shell-v34'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/kvarto-icon-192.png', '/kvarto-icon-512.png']
 
 self.addEventListener('install', event => {
@@ -39,17 +39,17 @@ self.addEventListener('fetch', event => {
   const mustRevalidate = event.request.mode === 'navigate'
 
   if ((destination === 'script' || destination === 'style' || destination === 'image') && new URL(event.request.url).pathname.startsWith('/assets/')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        const refreshed = fetch(event.request).then(response => {
-          if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()))
-          return response
-        })
-        if (!cached) return refreshed
-        event.waitUntil(refreshed.catch(() => undefined))
-        return cached
-      }),
-    )
+    event.respondWith((async () => {
+      const cached = await caches.match(event.request)
+      try {
+        const response = await fetch(event.request)
+        if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()))
+        return response
+      } catch {
+        if (cached) return cached
+        throw new TypeError('Asset is unavailable')
+      }
+    })())
     return
   }
 

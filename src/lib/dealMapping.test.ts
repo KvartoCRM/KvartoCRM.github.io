@@ -45,3 +45,11 @@ test('creates optimistic deal with durable participant and finance data', () => 
   assert.equal(deal.stage, 'documents')
   assert.equal(deal.checklist?.length, 1)
 })
+
+test('maps legacy finance stored directly on a deal when an activity is absent', () => {
+  const [deal] = mapDealRows([
+    { id: 'deal-legacy', property_id: 'property-1', price: 4_000_000, agency_income: '180000', agent_income: 70000, status: 'closed' },
+  ], [], [])
+  assert.equal(deal.agencyIncome, 180000)
+  assert.equal(deal.agentIncome, 70000)
+})

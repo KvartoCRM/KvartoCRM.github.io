@@ -22,3 +22,14 @@ export const describeQueueIssue = (issue: OfflineQueueIssue) => ({
           ? 'Сервер временно не отвечает'
           : 'Отправка будет повторена',
 })
+
+export const isNetworkFailure = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false
+  const value = error as { message?: unknown; status?: unknown; name?: unknown }
+  const status = Number(value.status)
+  if (Number.isFinite(status) && status >= 500) return true
+  if (Number.isFinite(status) && status >= 400) return false
+  return /fetch|network|timeout|timed out|abort|failed to connect|load failed/i.test(
+    [value.name, value.message].filter(Boolean).join(' '),
+  )
+}

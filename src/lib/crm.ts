@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
-import { indexDealFinance } from './dealFinance'
+import { indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance'
 import { inferContactRoles } from './contactRoles'
 import { countContactsByRole, isActiveDealRow } from './crmOverview'
 
@@ -154,7 +154,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       .eq('user_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })),
-    fetchAllRows(() => supabase.from('crm_activities').select('id,external_key,metadata').eq('user_id', userId).eq('type', 'note').ilike('external_key', 'deal-finance:%').is('deleted_at', null)),
+    fetchAllRows(() => supabase.from('crm_activities').select('id,external_key,metadata,created_at,updated_at').eq('user_id', userId).ilike('external_key', 'deal-finance:%').is('deleted_at', null).order('updated_at', { ascending: true })),
   ])
 
   const firstError = [clients.error, properties.error, tasks.error, events.error, deals.error, financeActivities.error].find(Boolean)
@@ -236,8 +236,8 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       periods,
       propertyTypes: Array.from(typeCounts, ([name, value]) => ({ name, value })),
       totalDealVolume: closedDeals.reduce((sum, deal) => sum + Number(deal.price || 0), 0),
-      totalAgencyIncome: closedDeals.reduce((sum, deal) => sum + Number(financeByDeal.get(deal.id)?.agencyIncome || 0), 0),
-      totalAgentIncome: closedDeals.reduce((sum, deal) => sum + Number(financeByDeal.get(deal.id)?.agentIncome || 0), 0),
+      totalAgencyIncome: closedDeals.reduce((sum, deal) => sum + Number(mergeDealFinance(financeByDeal.get(deal.id), readDealFinance(deal)).agencyIncome || 0), 0),
+      totalAgentIncome: closedDeals.reduce((sum, deal) => sum + Number(mergeDealFinance(financeByDeal.get(deal.id), readDealFinance(deal)).agentIncome || 0), 0),
     },
   }
 }
