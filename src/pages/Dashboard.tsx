@@ -76,7 +76,6 @@ const Dashboard = ({ children }: DashboardProps) => {
   const { data, loading, error, reload } = useCrmOverview(isHome)
   const [completingId, setCompletingId] = useState<string | null>(null)
   const [dashboardMode, setDashboardMode] = useState<'sale' | 'rent' | 'mortgage'>('sale')
-  const [syncRevision, setSyncRevision] = useState(0)
   const [analyticsReady, setAnalyticsReady] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const reduceMotion = useReducedMotion()
@@ -103,25 +102,6 @@ const Dashboard = ({ children }: DashboardProps) => {
     const handle = window.setTimeout(show, 1200)
     return () => window.clearTimeout(handle)
   }, [isHome])
-
-  useEffect(() => {
-    let timer = 0
-    const refreshAfterSync = () => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => {
-        setSyncRevision(value => value + 1)
-      }, 350)
-    }
-    window.addEventListener('lumicrm:data-synced', refreshAfterSync)
-    window.addEventListener('lumicrm:remote-data-changed', refreshAfterSync)
-    window.addEventListener('lumicrm:workspace-refreshed', refreshAfterSync)
-    return () => {
-      window.clearTimeout(timer)
-      window.removeEventListener('lumicrm:data-synced', refreshAfterSync)
-      window.removeEventListener('lumicrm:remote-data-changed', refreshAfterSync)
-      window.removeEventListener('lumicrm:workspace-refreshed', refreshAfterSync)
-    }
-  }, [])
 
   useEffect(() => {
     const idleWindow = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number; cancelIdleCallback?: (handle: number) => void }
@@ -460,7 +440,7 @@ const Dashboard = ({ children }: DashboardProps) => {
               exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
             >
-              {isHome ? renderHome() : <div key={syncRevision}>{children}</div>}
+              {isHome ? renderHome() : children}
             </motion.div>
           </AnimatePresence>
         </div>

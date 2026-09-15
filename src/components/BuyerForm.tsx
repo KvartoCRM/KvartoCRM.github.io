@@ -61,19 +61,41 @@ const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFor
   const [section, setSection] = useState('contact')
   const [form, setForm] = useState<FormData>(emptyForm(defaultPurpose))
   const [newLocation, setNewLocation] = useState('')
+  const [draftReady, setDraftReady] = useState(false)
   const { saveBuyer, mutationPending: saving } = useClientRecords(user?.id)
   const requirementQuery = useClientRequirement(user?.id, buyer?.id, form.purpose)
+  const draftKey = user && !buyer ? `kvartocrm:buyer-draft:${user.id}:${defaultPurpose}` : null
 
   const update = <K extends keyof FormData>(key: K, value: FormData[K]) => setForm(current => ({ ...current, [key]: value }))
 
   useEffect(() => {
     if (!isOpen) return
+    setDraftReady(false)
     setSection('contact')
-    if (!buyer) { setForm(emptyForm(defaultPurpose)); return }
+    if (!buyer) {
+      let next = emptyForm(defaultPurpose)
+      if (draftKey) {
+        try {
+          const saved = sessionStorage.getItem(draftKey)
+          if (saved) next = { ...next, ...JSON.parse(saved) as Partial<FormData>, purpose: defaultPurpose }
+        } catch {
+          sessionStorage.removeItem(draftKey)
+        }
+      }
+      setForm(next)
+      setDraftReady(true)
+      return
+    }
     const purpose: 'sale' | 'rent' = buyer.roles?.includes('tenant') ? 'rent' : defaultPurpose
     setForm({ ...emptyForm(purpose), purpose, firstName: buyer.firstName || '', lastName: buyer.lastName || '', middleName: buyer.middleName || '', birthDate: buyer.birthDate || '', birthdayReminder: buyer.birthdayReminder || false, phone: buyer.phone || '+7', contactComment: buyer.contactComment || '', email: buyer.email || '', source: buyer.source || '', status: buyer.status || 'new', firstContactDate: buyer.firstContactDate || '', privateNotes: buyer.description || '', propertyType: buyer.propertyType || 'Квартира', priceMax: String(buyer.budget ?? ''), rooms: String(buyer.rooms ?? ''), locations: buyer.preferredDistricts || [], mortgageNeeded: buyer.mortgageStatus || false })
+    setDraftReady(true)
 
-  }, [buyer, defaultPurpose, isOpen])
+  }, [buyer, defaultPurpose, draftKey, isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !draftKey || !draftReady) return
+    sessionStorage.setItem(draftKey, JSON.stringify(form))
+  }, [draftKey, draftReady, form, isOpen])
 
   useEffect(() => {
     const data = requirementQuery.data as Record<string, any> | null | undefined
@@ -114,6 +136,7 @@ const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFor
         linked_cards: { valuation: form.linkedValuationId, insurance: form.linkedInsuranceId, mortgage: form.linkedMortgageId, deal: form.linkedDealId, buyer: form.linkedBuyerId, seller: form.linkedSellerId }, private_notes: form.privateNotes || null, public_notes: form.publicNotes || null, updated_at: new Date().toISOString(),
       }
       await saveBuyer(clientInput, requirement, buyer?.id, requirementQuery.data?.id)
+      if (draftKey) sessionStorage.removeItem(draftKey)
       onClose()
     } catch (error) {
       console.error('Client requirement save failed:', error); alert(`Не удалось сохранить заявку: ${getErrorMessage(error, 'проверьте подключение и повторите')}`)

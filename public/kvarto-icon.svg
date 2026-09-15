@@ -18,6 +18,5 @@
   <circle cx="94" cy="413" r="188" fill="#087fff" opacity=".16"/>
   <circle cx="430" cy="97" r="185" fill="#7c3aed" opacity=".22"/>
   <rect x="82" y="82" width="348" height="348" rx="100" fill="url(#tile)" filter="url(#shadow)"/>
-  <path d="M193 155v202M211 256h41M252 256l85-91M252 256l91 101" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M329 160h29v51" fill="none" stroke="#7de8ff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M193 155v202M211 256h41M252 256l91-101M252 256l91 101" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { type CrmOverview, getCrmOverview } from '../lib/crm'
 import { crmQueryKeys } from '../lib/queryClient'
+import { clearWorkspaceNetworkRefresh, requestWorkspaceNetworkRefresh } from '../lib/offlineTransport'
 
 const initialValue: CrmOverview = {
   owners: 0,
@@ -31,7 +32,12 @@ export function useCrmOverview(enabled: boolean) {
 
   const reload = useCallback(async () => {
     if (!enabled || !user) return
-    await refetch()
+    requestWorkspaceNetworkRefresh()
+    try {
+      await refetch({ cancelRefetch: true, throwOnError: true })
+    } finally {
+      clearWorkspaceNetworkRefresh()
+    }
   }, [enabled, refetch, user])
 
   return {

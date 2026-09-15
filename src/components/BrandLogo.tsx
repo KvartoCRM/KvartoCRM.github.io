@@ -27,8 +27,7 @@ const BrandLogo = ({ className, markClassName, compact = false, inverse = false 
           </linearGradient>
         </defs>
         <rect x="2" y="2" width="60" height="60" rx="17" fill={`url(#${gradientId})`} />
-        <path d="M21 16v32M24 32h7M31 32l14-15M31 32l15 16" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M43.5 16.5h4v8" fill="none" stroke="#7DE8FF" strokeWidth="3" strokeLinecap="round" />
+        <path d="M21 16v32M24 32h7M31 32l15-16M31 32l15 16" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       {!compact && (
         <span className={clsx('whitespace-nowrap text-[1.32rem] font-semibold tracking-[-0.035em]', inverse ? 'text-white' : 'lumi-text')}>

@@ -173,7 +173,7 @@ const OfflineSyncStatus = () => {
 
   return (
     <div className="relative">
-      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Состояние синхронизации" className="lumi-control inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs">
+      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Состояние синхронизации" className="lumi-control inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs lg:w-60">
         <Icon className={`h-4 w-4 ${iconClass} ${status.syncing ? 'animate-spin' : ''}`} />
         <span className="hidden lg:inline">{label}</span>
         {status.pending > 0 && <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-300 lg:hidden">{status.pending}</span>}

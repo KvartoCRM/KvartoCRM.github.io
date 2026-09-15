@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
 import { indexDealFinance } from './dealFinance'
+import { inferContactRoles } from './contactRoles'
+import { countContactsByRole, isActiveDealRow } from './crmOverview'
 
 export type OverviewTask = {
   id: string
@@ -119,10 +121,15 @@ const emptyOverview: CrmOverview = {
 
 export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   const [clients, properties, tasks, events, deals, financeActivities] = await Promise.all([
-    fetchAllRows(() => supabase.from('clients').select('id,type,roles,mortgage_status,created_at').eq('user_id', userId).is('deleted_at', null)),
+    fetchAllRows(() => supabase
+      .from('clients')
+      .select('*')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })),
     fetchAllRows(() => supabase
       .from('properties')
-      .select('id,address,price,status,property_type,listing_type,created_at')
+      .select('*')
       .eq('user_id', userId)
       .is('deleted_at', null)
       .neq('status', 'archived')
@@ -141,7 +148,12 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       .eq('is_completed', false)
       .order('event_date', { ascending: true })
       .limit(8),
-    fetchAllRows(() => supabase.from('deals').select('id,status,price,created_at').eq('user_id', userId).is('deleted_at', null)),
+    fetchAllRows(() => supabase
+      .from('deals')
+      .select('*')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })),
     fetchAllRows(() => supabase.from('crm_activities').select('id,external_key,metadata').eq('user_id', userId).eq('type', 'note').ilike('external_key', 'deal-finance:%').is('deleted_at', null)),
   ])
 
@@ -162,11 +174,12 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
     return [maps.days.get(value.slice(0, 10)), maps.weeks.get(monday), maps.months.get(value.slice(0, 7))].filter(Boolean) as AnalyticsPoint[]
   }
   for (const client of clients.data ?? []) {
+    const roles = inferContactRoles(client)
     for (const point of pointsFor(client.created_at)) {
-      if (client.type === 'seller') point.sellers += 1
-      if (client.type === 'buyer') point.buyers += 1
-      if (client.roles?.includes('landlord')) point.landlords += 1
-      if (client.roles?.includes('tenant')) point.tenants += 1
+      if (roles.includes('seller')) point.sellers += 1
+      if (roles.includes('buyer')) point.buyers += 1
+      if (roles.includes('landlord')) point.landlords += 1
+      if (roles.includes('tenant')) point.tenants += 1
       if (client.mortgage_status) point.mortgageLeads += 1
     }
   }
@@ -189,10 +202,10 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 
   return {
     ...emptyOverview,
-    owners: (clients.data ?? []).filter(client => client.type === 'seller').length,
-    buyers: (clients.data ?? []).filter(client => client.type === 'buyer').length,
+    owners: countContactsByRole(clients.data ?? [], 'seller'),
+    buyers: countContactsByRole(clients.data ?? [], 'buyer'),
     properties: properties.data?.length ?? 0,
-    activeDeals: (deals.data ?? []).filter(deal => deal.status === 'active' || deal.status === 'pending').length,
+    activeDeals: (deals.data ?? []).filter(isActiveDealRow).length,
     completedToday: (tasks.data ?? []).filter(task => task.is_completed && typeof task.completed_at === 'string' && localDateKey(task.completed_at) === localDateKey(new Date())).length,
     tasks: (tasks.data ?? []).filter(task => !task.is_completed && task.status !== 'done').map(task => ({
       id: task.id,
