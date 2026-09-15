@@ -19,6 +19,7 @@ export const fetchCallActivities = async (userId: string): Promise<WorkCall[]> =
   const modern = eventsResult.value.data.map(mapCallEventRow).filter((call): call is WorkCall => Boolean(call))
   const legacy = legacyResult.status === 'fulfilled' ? legacyResult.value.data.map(mapCallActivityRow) : []
   console.info('[KvartoCRM calls diagnostic]', JSON.stringify({
+    userSuffix: userId.slice(-8),
     modernRows: eventsResult.value.data.length,
     modernMapped: modern.length,
     legacyRows: legacyResult.status === 'fulfilled' ? legacyResult.value.data.length : null,
