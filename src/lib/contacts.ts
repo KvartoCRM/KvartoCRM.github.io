@@ -178,24 +178,20 @@ export const trashContact = async (userId: string, contactId: string) => {
 }
 
 export const fetchContactSummaries = async (userId: string): Promise<ContactSummary[]> => {
-  const { data, error } = await fetchAllRows(() => supabase
-    .from('clients')
-    .select('id,type,first_name,last_name,middle_name,phone,email,roles,source,next_contact_at,is_favorite')
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false }))
-  if (error) throw error
-
-  return (data || []).map(row => ({
-    id: row.id,
-    firstName: row.first_name || '',
-    lastName: row.last_name || '',
-    middleName: row.middle_name || '',
-    phone: row.phone || '',
-    email: row.email || '',
-    roles: inferContactRoles(row),
-    source: row.source || undefined,
-    nextContactDate: row.next_contact_at || undefined,
-    isFavorite: Boolean(row.is_favorite),
+  // Reuse the complete client snapshot used by role pages and the dashboard.
+  // A second projection created a separate IndexedDB cache entry that could
+  // remain empty while the rest of the application already had fresh clients.
+  const clients = await fetchContactRecords(userId)
+  return clients.map(client => ({
+    id: client.id,
+    firstName: client.firstName,
+    lastName: client.lastName,
+    middleName: client.middleName || '',
+    phone: client.phone,
+    email: client.email || '',
+    roles: inferContactRoles(client as unknown as Record<string, unknown>),
+    source: client.source,
+    nextContactDate: client.nextContactDate,
+    isFavorite: client.isFavorite,
   }))
 }

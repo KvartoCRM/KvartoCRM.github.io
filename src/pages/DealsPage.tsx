@@ -128,6 +128,9 @@ const DealsPage = () => {
       const buyerIds = [...new Set(formData.buyerIds.filter(Boolean))]
       const ownerIds = [...new Set(formData.ownerIds.filter(Boolean))]
       if (buyerIds.length === 0 || ownerIds.length === 0) throw new Error('Выберите хотя бы одного покупателя и одного собственника')
+      if (formData.status === 'closed' && (formData.agencyIncome === undefined || formData.agentIncome === undefined)) {
+        throw new Error('Для закрытой сделки укажите приход агентства и доход агента')
+      }
       await dealsQuery.saveDeal({
         propertyId: formData.propertyId,
         buyerIds,
@@ -323,12 +326,12 @@ const DealsPage = () => {
               <input type="number" required min="0" step="any" value={formData.price ?? ''} onChange={event => setFormData(current => ({ ...current, price: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
             </div>
             <div>
-              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Приход агентства</label>
-              <input type="number" min="0" step="any" value={formData.agencyIncome ?? ''} onChange={event => setFormData(current => ({ ...current, agencyIncome: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
+              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Приход агентства{formData.status === 'closed' ? ' *' : ''}</label>
+              <input type="number" required={formData.status === 'closed'} min="0" step="any" value={formData.agencyIncome ?? ''} onChange={event => setFormData(current => ({ ...current, agencyIncome: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
             </div>
             <div>
-              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Доход агента</label>
-              <input type="number" min="0" step="any" value={formData.agentIncome ?? ''} onChange={event => setFormData(current => ({ ...current, agentIncome: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
+              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Доход агента{formData.status === 'closed' ? ' *' : ''}</label>
+              <input type="number" required={formData.status === 'closed'} min="0" step="any" value={formData.agentIncome ?? ''} onChange={event => setFormData(current => ({ ...current, agentIncome: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
             </div>
             <div>
               <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Расходы</label>

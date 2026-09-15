@@ -660,8 +660,9 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
       })
   }
 
-  // Preserve mutation ordering when earlier changes have not reached the server.
-  if (isOnline() && await getOfflineQueueCount(userId) === 0) {
+  // Preserve ordering only for mutations of the same record. A stuck task must
+  // not force an unrelated contact, property or deal into the offline queue.
+  if (isOnline() && !await hasQueuedEntityConflict(request, userId, table)) {
     try {
       const response = await fetchWithFallback(request.clone(), WRITE_TIMEOUT_MS, fallbackUrl)
       if (response.status < 500) {
@@ -729,6 +730,27 @@ const queuedEntityKey = (entry: QueuedRequest) => {
     // Fall back to table-level ordering for malformed legacy queue entries.
   }
   return `${entry.table}:*`
+}
+
+const hasQueuedEntityConflict = async (request: Request, userId: string, table: string) => {
+  const entries = await getAllByIndex<QueuedRequest>(QUEUE_STORE, 'userId', userId).catch(() => [])
+  if (entries.length === 0) return false
+  const current: QueuedRequest = {
+    id: '',
+    userId,
+    table,
+    url: request.url,
+    method: request.method,
+    headers: {},
+    body: request.body ? await request.clone().text() : '',
+    createdAt: 0,
+    attempts: 0,
+  }
+  const currentKey = queuedEntityKey(current)
+  return entries.some(entry => {
+    const queuedKey = queuedEntityKey(entry)
+    return queuedKey === currentKey || queuedKey === `${table}:*` || currentKey === `${table}:*` && entry.table === table
+  })
 }
 
 const protectedQueueColumns = new Set(['id', 'user_id'])

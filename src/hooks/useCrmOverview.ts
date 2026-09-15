@@ -14,7 +14,7 @@ const initialValue: CrmOverview = {
   tasks: [],
   events: [],
   recentProperties: [],
-  analytics: { months: [], periods: { days: [], weeks: [], months: [] }, propertyTypes: [], totalDealVolume: 0, totalAgencyIncome: 0, totalAgentIncome: 0 },
+  analytics: { months: [], periods: { days: [], weeks: [], months: [] }, propertyTypes: [], totalDealVolume: 0, totalAgencyIncome: 0, totalAgentIncome: 0, incompleteFinanceDeals: 0 },
 }
 
 export function useCrmOverview(enabled: boolean) {

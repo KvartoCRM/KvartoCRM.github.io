@@ -201,7 +201,7 @@ const OfflineSyncStatus = () => {
       <AnchoredPopover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={340} ariaLabel="Состояние облака" className="overflow-y-auto p-4">
         <div className="flex items-start gap-3">
           <div className={`rounded-xl p-3 ${state === 'offline' ? 'bg-amber-500/10' : 'lumi-accent-soft'}`}><Cloud className={`h-5 w-5 ${iconClass}`} /></div>
-          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Копия на устройстве доступна, но чтение и сохранение сейчас не подтверждены.' : state === 'offline' ? 'Работайте дальше: изменения остаются на устройстве и отправятся после восстановления связи.' : 'Изменения на этом устройстве синхронизированы.'}</p></div>
+          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Копия на устройстве доступна, но чтение и сохранение сейчас не подтверждены.' : state === 'offline' ? 'Работайте дальше: изменения остаются на устройстве и отправятся после восстановления связи.' : status.pending > 0 ? 'Часть изменений сохранена на устройстве и ещё ожидает отправки.' : 'Изменения на этом устройстве синхронизированы.'}</p></div>
         </div>
 
         <div className="lumi-panel-muted mt-4 space-y-3 rounded-xl border p-3 text-xs">

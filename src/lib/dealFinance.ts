@@ -61,6 +61,10 @@ export const mergeDealFinance = (preferred?: DealFinance, fallback?: DealFinance
   agentIncome: preferred?.agentIncome ?? fallback?.agentIncome,
 })
 
+export const isDealFinanceComplete = (finance: DealFinance) => (
+  finance.agencyIncome !== undefined && finance.agentIncome !== undefined
+)
+
 export const indexDealFinance = (activities: DealFinanceActivity[]) => {
   const result = new Map<string, DealFinance>()
   const ordered = [...activities].sort((left, right) => {

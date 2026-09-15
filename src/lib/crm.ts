@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
-import { indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance'
+import { indexDealFinance, isDealFinanceComplete, mergeDealFinance, readDealFinance } from './dealFinance'
 import { inferContactRoles } from './contactRoles'
 import { countContactsByRole, isActiveDealRow } from './crmOverview'
 
@@ -47,6 +47,7 @@ export type CrmOverview = {
     totalDealVolume: number
     totalAgencyIncome: number
     totalAgentIncome: number
+    incompleteFinanceDeals: number
   }
 }
 
@@ -116,7 +117,7 @@ const emptyOverview: CrmOverview = {
   tasks: [],
   events: [],
   recentProperties: [],
-  analytics: { months: makePeriods().months, periods: makePeriods(), propertyTypes: [], totalDealVolume: 0, totalAgencyIncome: 0, totalAgentIncome: 0 },
+  analytics: { months: makePeriods().months, periods: makePeriods(), propertyTypes: [], totalDealVolume: 0, totalAgencyIncome: 0, totalAgentIncome: 0, incompleteFinanceDeals: 0 },
 }
 
 export async function getCrmOverview(userId: string): Promise<CrmOverview> {
@@ -191,6 +192,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   }
   const closedDeals = (deals.data ?? []).filter(deal => deal.status === 'closed')
   const financeByDeal = indexDealFinance(financeActivities.data ?? [])
+  const closedDealFinance = closedDeals.map(deal => mergeDealFinance(financeByDeal.get(deal.id), readDealFinance(deal)))
   for (const deal of closedDeals) {
     for (const point of pointsFor(deal.created_at)) point.dealVolume += Number(deal.price || 0)
   }
@@ -236,8 +238,9 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       periods,
       propertyTypes: Array.from(typeCounts, ([name, value]) => ({ name, value })),
       totalDealVolume: closedDeals.reduce((sum, deal) => sum + Number(deal.price || 0), 0),
-      totalAgencyIncome: closedDeals.reduce((sum, deal) => sum + Number(mergeDealFinance(financeByDeal.get(deal.id), readDealFinance(deal)).agencyIncome || 0), 0),
-      totalAgentIncome: closedDeals.reduce((sum, deal) => sum + Number(mergeDealFinance(financeByDeal.get(deal.id), readDealFinance(deal)).agentIncome || 0), 0),
+      totalAgencyIncome: closedDealFinance.reduce((sum, finance) => sum + Number(finance.agencyIncome || 0), 0),
+      totalAgentIncome: closedDealFinance.reduce((sum, finance) => sum + Number(finance.agentIncome || 0), 0),
+      incompleteFinanceDeals: closedDealFinance.filter(finance => !isDealFinanceComplete(finance)).length,
     },
   }
 }

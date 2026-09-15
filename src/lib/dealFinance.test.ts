@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { dealFinanceKey, formatMoney, indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance.ts'
+import { dealFinanceKey, formatMoney, indexDealFinance, isDealFinanceComplete, mergeDealFinance, readDealFinance } from './dealFinance.ts'
 
 test('reads non-negative deal finance values', () => {
   assert.deepEqual(readDealFinance({ agency_income: '200000', agent_income: 75000 }), {
@@ -48,4 +48,9 @@ test('prefers a finance activity and falls back to legacy deal columns', () => {
 test('formats deal money without treating zero as missing', () => {
   assert.equal(formatMoney(0), '0 ₽')
   assert.equal(formatMoney(undefined), 'Не указано')
+})
+
+test('distinguishes zero income from incomplete finance', () => {
+  assert.equal(isDealFinanceComplete({ agencyIncome: 0, agentIncome: 0 }), true)
+  assert.equal(isDealFinanceComplete({ agencyIncome: 100000 }), false)
 })

@@ -227,3 +227,33 @@ test('a rejected legacy record does not block a newer record in the same table',
   assert.equal(await getOfflineQueueCount(userId), 1)
   assert.deepEqual(acceptedIds, ['new-task'])
 })
+
+test('a queued task does not force an unrelated contact into the queue', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
+
+  const userId = '00000000-0000-4000-8000-000000000041'
+  const accepted: string[] = []
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    if (request.method === 'POST') accepted.push(new URL(request.url).pathname)
+    return new Response(null, { status: 201 })
+  }) as typeof fetch
+
+  const { createOfflineFetch, getOfflineQueueCount, setOfflineSession } = await import(`./offlineTransport.ts?unrelated-queue=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const headers = { authorization: `Bearer ${jwtFor(userId)}`, apikey: 'public-key', 'content-type': 'application/json' }
+  await offlineFetch('https://direct.example/rest/v1/tasks', {
+    method: 'POST', headers, body: JSON.stringify({ id: 'task-1', user_id: userId, title: 'В очереди' }),
+  })
+  assert.equal(await getOfflineQueueCount(userId), 1)
+
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: true })
+  const response = await offlineFetch('https://direct.example/rest/v1/clients', {
+    method: 'POST', headers, body: JSON.stringify({ id: 'client-1', user_id: userId, first_name: 'Новый' }),
+  })
+  assert.equal(response.status, 201)
+  assert.equal(await getOfflineQueueCount(userId), 1)
+  assert.deepEqual(accepted, ['/rest/v1/clients'])
+})

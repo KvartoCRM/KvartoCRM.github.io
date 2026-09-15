@@ -263,6 +263,12 @@ const Dashboard = ({ children }: DashboardProps) => {
           ))}
         </div>
 
+        {data.analytics.incompleteFinanceDeals > 0 && (
+          <div className="border-t border-amber-500/25 bg-amber-500/10 px-5 py-3 text-sm text-amber-300">
+            Финансы не заполнены у закрытых сделок: {data.analytics.incompleteFinanceDeals}. Откройте их в разделе «Сделки» и укажите приход агентства и доход агента.
+          </div>
+        )}
+
         {analyticsReady
           ? <Suspense fallback={<div className="lumi-muted p-8 text-center">Загружаем аналитику…</div>}><DashboardAnalytics analytics={data.analytics} config={chartConfig} /></Suspense>
           : <div className="lumi-muted p-8 text-center">Аналитика появится после загрузки основных данных…</div>}
