@@ -5,7 +5,7 @@ import { moveToTrash } from './trash'
 
 export const fetchCallActivities = async (userId: string): Promise<WorkCall[]> => {
   const [eventsResult, legacyResult] = await Promise.all([
-    fetchAllRows(() => supabase.from('events').select('id,title,notes,external_key').eq('user_id', userId).is('deleted_at', null).eq('type', 'call')),
+    fetchAllRows(() => supabase.from('events').select('id,title,notes,external_key').eq('user_id', userId).is('deleted_at', null).like('external_key', 'call-log:%')),
     fetchAllRows(() => supabase.from('crm_activities').select('id,title,occurred_at,source,outcome,notes,metadata').eq('user_id', userId).is('deleted_at', null).eq('type', 'call').eq('status', 'completed')),
   ])
   if (eventsResult.error) throw eventsResult.error
@@ -22,10 +22,14 @@ export const saveCallActivity = async (userId: string, input: CallActivityInput,
   const occurred = new Date(input.occurred_at || new Date().toISOString())
   const payload = {
     user_id: userId,
-    type: 'call',
+    // The deployed database has historically treated scheduled `call` events
+    // inconsistently. A completed journal record uses the proven meeting row
+    // path and is identified exclusively by its private call-log key.
+    type: 'meeting',
     title: input.title,
     event_date: occurred.toISOString().slice(0, 10),
-    event_time: occurred.toISOString().slice(11, 19),
+    event_time: null,
+    is_completed: true,
     notes: encodeCallEvent(input),
     external_key: callEventKey(id),
   }
