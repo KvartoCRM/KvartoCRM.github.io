@@ -87,6 +87,19 @@ export const saveDeal = async (
       agent_income: input.agentIncome ?? null,
     },
   }
+  // A previous mutation may have reached PostgREST while its response body was
+  // lost on an unstable route. In that case the activity exists in the cloud,
+  // but an older cached deal does not yet know its id. Replacing the row by its
+  // unique business key makes a retry deterministic and avoids a duplicate-key
+  // failure that otherwise leaves the whole deal form open with a generic error.
+  if (!existingFinanceActivityId) {
+    const { error: removeStaleFinanceError } = await supabase
+      .from('crm_activities')
+      .delete()
+      .eq('user_id', userId)
+      .eq('external_key', dealFinanceKey(id))
+    if (removeStaleFinanceError) throw removeStaleFinanceError
+  }
   const financeResult = existingFinanceActivityId
     ? await supabase.from('crm_activities').update(financePayload).eq('id', existingFinanceActivityId).eq('user_id', userId)
     : await supabase.from('crm_activities').insert({ ...financePayload, id: financeId })
