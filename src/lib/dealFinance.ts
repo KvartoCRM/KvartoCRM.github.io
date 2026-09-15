@@ -1,4 +1,5 @@
 export const DEAL_FINANCE_PREFIX = 'deal-finance:'
+export const DEAL_FINANCE_SNAPSHOT_ID = 'kvartocrm:deal-finance'
 
 export type DealFinance = {
   agencyIncome?: number
@@ -32,10 +33,24 @@ const nestedRecord = (value: unknown) => value && typeof value === 'object' && !
   ? value as Record<string, unknown>
   : undefined
 
+const checklistFinance = (value: unknown) => {
+  if (!Array.isArray(value)) return undefined
+  return value.find(item => nestedRecord(item)?.id === DEAL_FINANCE_SNAPSHOT_ID) as Record<string, unknown> | undefined
+}
+
+export const makeDealFinanceSnapshot = (finance: DealFinance) => ({
+  id: DEAL_FINANCE_SNAPSHOT_ID,
+  title: '',
+  completed: true,
+  agency_income: finance.agencyIncome ?? null,
+  agent_income: finance.agentIncome ?? null,
+})
+
 export const readDealFinance = (input?: object | null): DealFinance => {
   const source = input as Record<string, unknown> | undefined
   const metadata = nestedRecord(source?.metadata) ?? source
   const finance = nestedRecord(metadata?.finance)
+  const snapshot = checklistFinance(source?.checklist)
   return {
     agencyIncome: firstMoney(
       metadata?.agency_income,
@@ -44,6 +59,8 @@ export const readDealFinance = (input?: object | null): DealFinance => {
       finance?.agencyIncome,
       source?.agency_income,
       source?.agencyIncome,
+      snapshot?.agency_income,
+      snapshot?.agencyIncome,
     ),
     agentIncome: firstMoney(
       metadata?.agent_income,
@@ -52,6 +69,8 @@ export const readDealFinance = (input?: object | null): DealFinance => {
       finance?.agentIncome,
       source?.agent_income,
       source?.agentIncome,
+      snapshot?.agent_income,
+      snapshot?.agentIncome,
     ),
   }
 }

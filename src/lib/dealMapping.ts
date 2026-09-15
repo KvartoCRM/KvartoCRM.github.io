@@ -1,5 +1,5 @@
 import type { Deal } from '../types'
-import { indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance.ts'
+import { DEAL_FINANCE_SNAPSHOT_ID, indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance.ts'
 import { indexDealParticipants, participantIdsWithLegacyFallback, type DealParticipantRow } from './dealParticipants.ts'
 
 export type DealUpsertInput = {
@@ -70,7 +70,7 @@ export const mapDealRows = (
             title: typeof checklistItem.title === 'string' ? checklistItem.title : '',
             completed: checklistItem.completed === true,
           }
-        }).filter(item => item.title)
+        }).filter(item => item.id !== DEAL_FINANCE_SNAPSHOT_ID && item.title)
         : [],
       financeActivityId: financeIds.get(id),
       status: row.status === 'pending' || row.status === 'closed' || row.status === 'cancelled' ? row.status : 'active',

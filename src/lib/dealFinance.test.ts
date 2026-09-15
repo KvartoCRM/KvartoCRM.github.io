@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { dealFinanceKey, formatMoney, indexDealFinance, isDealFinanceComplete, mergeDealFinance, readDealFinance } from './dealFinance.ts'
+import { DEAL_FINANCE_SNAPSHOT_ID, dealFinanceKey, formatMoney, indexDealFinance, isDealFinanceComplete, makeDealFinanceSnapshot, mergeDealFinance, readDealFinance } from './dealFinance.ts'
 
 test('reads non-negative deal finance values', () => {
   assert.deepEqual(readDealFinance({ agency_income: '200000', agent_income: 75000 }), {
@@ -18,6 +18,15 @@ test('reads non-negative deal finance values', () => {
   assert.deepEqual(readDealFinance({ agency_income: 90_000, agent_income: 45_000 }), {
     agencyIncome: 90_000,
     agentIncome: 45_000,
+  })
+})
+
+test('stores and reads a finance snapshot inside the deal checklist', () => {
+  const snapshot = makeDealFinanceSnapshot({ agencyIncome: 190000, agentIncome: 95000 })
+  assert.equal(snapshot.id, DEAL_FINANCE_SNAPSHOT_ID)
+  assert.deepEqual(readDealFinance({ checklist: [{ id: 'visible', title: 'Договор' }, snapshot] }), {
+    agencyIncome: 190000,
+    agentIncome: 95000,
   })
 })
 

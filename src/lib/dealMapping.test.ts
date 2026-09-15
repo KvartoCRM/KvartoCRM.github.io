@@ -53,3 +53,16 @@ test('maps legacy finance stored directly on a deal when an activity is absent',
   assert.equal(deal.agencyIncome, 180000)
   assert.equal(deal.agentIncome, 70000)
 })
+
+test('maps embedded finance without exposing its service checklist item', () => {
+  const [deal] = mapDealRows([{
+    id: 'deal-snapshot', property_id: 'property-1', status: 'closed',
+    checklist: [
+      { id: 'visible', title: 'Проверить договор', completed: false },
+      { id: 'kvartocrm:deal-finance', title: '', completed: true, agency_income: 190000, agent_income: 95000 },
+    ],
+  }], [], [])
+  assert.equal(deal.agencyIncome, 190000)
+  assert.equal(deal.agentIncome, 95000)
+  assert.deepEqual(deal.checklist, [{ id: 'visible', title: 'Проверить договор', completed: false }])
+})

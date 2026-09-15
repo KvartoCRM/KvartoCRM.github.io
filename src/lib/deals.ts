@@ -1,4 +1,4 @@
-import { dealFinanceKey } from './dealFinance'
+import { DEAL_FINANCE_SNAPSHOT_ID, dealFinanceKey, makeDealFinanceSnapshot } from './dealFinance'
 import { dealFromInput, mapDealRows, type DealRecord, type DealUpsertInput } from './dealMapping'
 import { makeDealParticipantRows, type DealParticipantRow } from './dealParticipants'
 import { supabase } from './supabase'
@@ -52,7 +52,10 @@ export const saveDeal = async (
     stage: input.stage ?? 'preparation',
     expenses: input.expenses ?? 0,
     loss_reason: input.lossReason || null,
-    checklist: input.checklist ?? [],
+    checklist: [
+      ...(input.checklist ?? []).filter(item => item.id !== DEAL_FINANCE_SNAPSHOT_ID),
+      makeDealFinanceSnapshot({ agencyIncome: input.agencyIncome, agentIncome: input.agentIncome }),
+    ],
     notes: input.notes || null,
   }
   const dealResult = dealId
@@ -98,12 +101,15 @@ export const saveDeal = async (
       .delete()
       .eq('user_id', userId)
       .eq('external_key', dealFinanceKey(id))
-    if (removeStaleFinanceError) throw removeStaleFinanceError
+    // The deal row already contains an authoritative finance snapshot. The
+    // activity is maintained for compatibility and must not roll back a saved
+    // deal when this auxiliary table is temporarily unavailable.
+    if (removeStaleFinanceError) return { id, financeActivityId: financeId }
   }
   const financeResult = existingFinanceActivityId
     ? await supabase.from('crm_activities').update(financePayload).eq('id', existingFinanceActivityId).eq('user_id', userId)
     : await supabase.from('crm_activities').insert({ ...financePayload, id: financeId })
-  if (financeResult.error) throw financeResult.error
+  if (financeResult.error) return { id, financeActivityId: financeId }
 
   return { id, financeActivityId: financeId }
 }
