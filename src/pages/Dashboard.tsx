@@ -15,7 +15,6 @@ import {
   LogOut,
   Menu,
   Phone,
-  RefreshCw,
   Settings,
   Star,
   Trash2,
@@ -189,22 +188,13 @@ const Dashboard = ({ children }: DashboardProps) => {
 
   const renderHome = () => (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
         <div>
           <p className="lumi-accent-text mb-1 text-sm font-medium">Ваш офис недвижимости</p>
           <h1 className="lumi-text text-3xl font-bold">
             Добро пожаловать, {user?.firstName || 'в ваш офис'}
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={() => void reload()}
-          disabled={loading}
-          className="lumi-control inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить
-        </button>
       </div>
 
       {error && (
@@ -409,7 +399,7 @@ const Dashboard = ({ children }: DashboardProps) => {
       </aside>
 
       <main className={`flex min-w-0 flex-1 flex-col overflow-hidden ${user?.preferences.navigationPosition === 'right' ? 'order-1' : 'order-2'}`}>
-        <header className="lumi-header relative z-[60] flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur md:px-8 md:py-4">
+        <header className="lumi-header relative z-[60] flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur md:px-8 md:py-4 2xl:flex-nowrap">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
@@ -419,8 +409,8 @@ const Dashboard = ({ children }: DashboardProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="order-3 w-full md:order-none md:max-w-md"><GlobalSearch /></div>
-          <div className="order-2 ml-auto flex items-center gap-2 sm:gap-4 md:order-none">
+          <div className="order-3 w-full min-w-0 md:order-none md:max-w-md 2xl:flex-1"><GlobalSearch /></div>
+          <div className="order-2 ml-auto flex shrink-0 items-center gap-2 md:order-none xl:gap-3">
             <OfflineSyncStatus />
             <WorkspaceRefreshButton />
             <InstallAppButton compact />

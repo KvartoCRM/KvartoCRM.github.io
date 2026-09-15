@@ -169,14 +169,17 @@ const OfflineSyncStatus = () => {
   const label = state === 'offline'
     ? sessionProblem ? 'Требуется вход' : 'Синхронизация недоступна'
     : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверяем связь' : 'Синхронизировано'
+  const buttonLabel = state === 'offline'
+    ? sessionProblem ? 'Нужен вход' : 'Нет связи'
+    : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверка' : 'В облаке'
   const iconClass = state === 'offline' ? 'text-amber-400' : state === 'syncing' ? 'text-sky-400' : 'text-emerald-400'
 
   return (
     <div className="relative">
-      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Состояние синхронизации" className="lumi-control inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs lg:w-60">
+      <button ref={triggerRef} type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label={`Состояние синхронизации: ${label}`} title={label} className="lumi-control inline-flex w-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs xl:w-36">
         <Icon className={`h-4 w-4 ${iconClass} ${status.syncing ? 'animate-spin' : ''}`} />
-        <span className="hidden lg:inline">{label}</span>
-        {status.pending > 0 && <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-300 lg:hidden">{status.pending}</span>}
+        <span className="hidden xl:inline">{buttonLabel}</span>
+        {status.pending > 0 && <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[0.65rem] font-bold text-amber-300 xl:hidden">{status.pending}</span>}
       </button>
 
       <AnchoredPopover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={340} ariaLabel="Состояние облака" className="overflow-y-auto p-4">
