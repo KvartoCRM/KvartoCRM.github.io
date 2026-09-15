@@ -4,13 +4,20 @@ import { supabase } from './supabase'
 import { moveToTrash } from './trash'
 
 export const fetchCallActivities = async (userId: string): Promise<WorkCall[]> => {
-  const [eventsResult, legacyResult] = await Promise.all([
-    fetchAllRows(() => supabase.from('events').select('id,title,notes,external_key').eq('user_id', userId).is('deleted_at', null).like('external_key', 'call-log:%')),
+  const readModern = (networkOnly: boolean) => fetchAllRows(() => {
+    const query = supabase.from('events').select('id,title,notes,external_key').eq('user_id', userId).is('deleted_at', null).like('external_key', 'call-log:%')
+    return networkOnly ? query.setHeader('x-lumicrm-network-only', 'true') : query
+  })
+  const modernPromise = typeof navigator !== 'undefined' && navigator.onLine
+    ? readModern(true).catch(() => readModern(false))
+    : readModern(false)
+  const [eventsResult, legacyResult] = await Promise.allSettled([
+    modernPromise,
     fetchAllRows(() => supabase.from('crm_activities').select('id,title,occurred_at,source,outcome,notes,metadata').eq('user_id', userId).is('deleted_at', null).eq('type', 'call').eq('status', 'completed')),
   ])
-  if (eventsResult.error) throw eventsResult.error
-  const modern = eventsResult.data.map(mapCallEventRow).filter((call): call is WorkCall => Boolean(call))
-  const legacy = legacyResult.error ? [] : legacyResult.data.map(mapCallActivityRow)
+  if (eventsResult.status === 'rejected') throw eventsResult.reason
+  const modern = eventsResult.value.data.map(mapCallEventRow).filter((call): call is WorkCall => Boolean(call))
+  const legacy = legacyResult.status === 'fulfilled' ? legacyResult.value.data.map(mapCallActivityRow) : []
   const byId = new Map<string, WorkCall>()
   legacy.forEach(call => byId.set(call.id, call))
   modern.forEach(call => byId.set(call.id, call))

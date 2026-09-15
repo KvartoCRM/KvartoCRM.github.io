@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kvartocrm-shell-v44'
+const CACHE_NAME = 'kvartocrm-shell-v45'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/kvarto-icon-192.png', '/kvarto-icon-512.png']
 
 self.addEventListener('install', event => {

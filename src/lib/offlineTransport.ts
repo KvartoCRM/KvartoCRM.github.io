@@ -625,7 +625,15 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
   if (activeUserId !== userId) return nativeFetch(request)
   const method = request.method.toUpperCase()
   transportConfig = { url: supabaseUrl, fallback: fallbackUrl, apiKey: request.headers.get('apikey') ?? '' }
-  if (networkOnly || method === 'HEAD') return fetchWithFallback(request, INTERACTIVE_NETWORK_TIMEOUT_MS, fallbackUrl)
+  if (networkOnly || method === 'HEAD') {
+    let response = await fetchWithFallback(request, INTERACTIVE_NETWORK_TIMEOUT_MS, fallbackUrl)
+    if (networkOnly && method === 'GET' && response.ok) {
+      response = await mergePendingMutationsIntoResponse(request, response, userId, table)
+      await cacheResponse(request, response, userId, table)
+      emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
+    }
+    return response
+  }
   if (method === 'POST') {
     const body = await request.clone().text()
     const payload = prepareOfflinePayload(table, body ? JSON.parse(body) : {})
