@@ -48,7 +48,7 @@ export const useClientRecords = (userId?: string) => {
   const refreshRelated = async () => {
     if (!userId) return
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.contacts(userId) }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.properties(userId) }),

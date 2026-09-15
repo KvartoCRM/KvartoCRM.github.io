@@ -33,7 +33,7 @@ export const useMonthlyPlan = (userId?: string) => {
     onError: (_error, _variables, context) => {
       if (context) queryClient.setQueryData(queryKey, context.previous)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
   })
 
   return {

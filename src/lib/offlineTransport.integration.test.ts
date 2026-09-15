@@ -36,6 +36,34 @@ test('a response that stalls after headers times out and uses the read fallback'
   assert.ok(Date.now() - started < 9000)
 })
 
+test('a successful table mutation is acknowledged from headers when its empty body stalls', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
+  const userId = '00000000-0000-4000-8000-000000000051'
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    return new Response(new ReadableStream({
+      start(controller) {
+        request.signal.addEventListener('abort', () => controller.error(request.signal.reason), { once: true })
+      },
+    }), { status: 201 })
+  }) as typeof fetch
+
+  const { createOfflineFetch, getOfflineQueueCount, setOfflineSession } = await import(`./offlineTransport.ts?write-headers=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const started = Date.now()
+  const response = await offlineFetch('https://direct.example/rest/v1/clients', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${jwtFor(userId)}`, apikey: 'public-key', 'content-type': 'application/json' },
+    body: JSON.stringify({ id: 'client-1', user_id: userId, first_name: 'Проверка' }),
+  })
+  assert.equal(response.status, 201)
+  assert.equal(await response.text(), '')
+  assert.equal(await getOfflineQueueCount(userId), 0)
+  assert.ok(Date.now() - started < 1000)
+})
+
 test('a queued call survives an endpoint change and replays once through the new primary', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })

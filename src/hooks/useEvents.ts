@@ -26,7 +26,7 @@ export const useEvents = (userId?: string) => {
   }
   const refreshRelated = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
       userId ? queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }) : Promise.resolve(),
       userId ? queryClient.invalidateQueries({ queryKey: crmQueryKeys.planActuals(userId) }) : Promise.resolve(),
     ])

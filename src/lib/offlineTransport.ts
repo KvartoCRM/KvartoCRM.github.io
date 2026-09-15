@@ -122,6 +122,23 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
     return await Promise.race([
       (async () => {
         const response = await nativeFetch(new Request(request, { signal: controller.signal }))
+        const method = request.method.toUpperCase()
+        const needsRepresentation = request.headers.get('prefer')?.includes('return=representation')
+        const canAcknowledgeFromHeaders = response.ok
+          && !['GET', 'HEAD'].includes(method)
+          && new URL(request.url).pathname.startsWith('/rest/v1/')
+          && !needsRepresentation
+        if (canAcknowledgeFromHeaders) {
+          // PostgREST commits before sending success headers. Some regional
+          // routes then stall or truncate the empty response stream. Waiting
+          // for that stream incorrectly queued an operation already committed.
+          void response.body?.cancel().catch(() => undefined)
+          const acknowledged = new Response(null, {
+            status: response.status, statusText: response.statusText, headers: response.headers,
+          })
+          Object.defineProperty(acknowledged, 'url', { value: response.url })
+          return acknowledged
+        }
         // fetch resolves on headers. A stalled body must remain inside the
         // deadline too, otherwise JSON decoding can hang indefinitely.
         const body = response.body ? await response.arrayBuffer() : null

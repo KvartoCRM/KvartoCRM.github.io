@@ -6,6 +6,10 @@ const tableLabels: Record<string, string> = {
   tasks: 'Задача',
   events: 'Событие',
   deals: 'Сделка',
+  deal_participants: 'Участники сделки',
+  crm_activities: 'Финансы или звонок',
+  property_owners: 'Владелец объекта',
+  client_requirements: 'Пожелания клиента',
   crm_files: 'Файл',
   monthly_plans: 'План',
 }
@@ -18,7 +22,7 @@ export const describeQueueIssue = (issue: OfflineQueueIssue) => ({
       ? 'Данные изменились на другом устройстве'
       : /HTTP 4\d\d/.test(issue.lastError || '')
         ? 'Сервер отклонил данные записи'
-        : /HTTP 5\d\d|timeout|abort|network|fetch/i.test(issue.lastError || '')
+        : /HTTP 5\d\d|timeout|abort|network|fetch|terminated|reset/i.test(issue.lastError || '')
           ? 'Сервер временно не отвечает'
           : 'Отправка будет повторена',
 })
@@ -29,7 +33,7 @@ export const isNetworkFailure = (error: unknown) => {
   const status = Number(value.status)
   if (Number.isFinite(status) && status >= 500) return true
   if (Number.isFinite(status) && status >= 400) return false
-  return /fetch|network|timeout|timed out|abort|failed to connect|load failed/i.test(
+  return /fetch|network|timeout|timed out|abort|failed to connect|load failed|terminated|reset/i.test(
     [value.name, value.message].filter(Boolean).join(' '),
   )
 }

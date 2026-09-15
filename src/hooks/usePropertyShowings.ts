@@ -28,7 +28,7 @@ export const usePropertyShowings = (userId?: string, propertyId?: string) => {
   const refreshRelated = async () => {
     if (!userId) return
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.planActuals(userId) }),
     ])

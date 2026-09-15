@@ -16,7 +16,7 @@ export const usePropertyPromotions = (userId?: string, propertyId?: string) => {
   }
   const restore = (context?: Context) => context?.previous && queryClient.setQueryData(queryKey, context.previous)
   const refresh = () => Promise.all([
-    queryClient.invalidateQueries({ queryKey }),
+    queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
     userId ? queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }) : Promise.resolve(),
   ])
   const saveMutation = useMutation({
