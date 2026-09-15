@@ -9,7 +9,17 @@ export const fetchCallActivities = async (userId: string): Promise<WorkCall[]> =
     return networkOnly ? query.setHeader('x-lumicrm-network-only', 'true') : query
   })
   const modernPromise = typeof navigator !== 'undefined' && navigator.onLine
-    ? readModern(true).catch(() => readModern(false))
+    ? readModern(true).catch(error => {
+      const details = error && typeof error === 'object' ? error as Record<string, unknown> : {}
+      console.error('[KvartoCRM call network diagnostic]', JSON.stringify({
+        name: details.name,
+        message: details.message,
+        code: details.code,
+        status: details.status,
+        details: details.details,
+      }))
+      return readModern(false)
+    })
     : readModern(false)
   const [eventsResult, legacyResult] = await Promise.allSettled([
     modernPromise,
