@@ -41,11 +41,15 @@ test('a successful table mutation is acknowledged from headers when its empty bo
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
   const userId = '00000000-0000-4000-8000-000000000051'
   let responseCancelled = false
+  let responseRead = false
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     return new Response(new ReadableStream({
       start(controller) {
         request.signal.addEventListener('abort', () => controller.error(request.signal.reason), { once: true })
+      },
+      pull() {
+        responseRead = true
       },
       cancel() {
         responseCancelled = true
@@ -65,6 +69,7 @@ test('a successful table mutation is acknowledged from headers when its empty bo
   assert.equal(response.status, 201)
   assert.equal(await response.text(), '')
   assert.equal(await getOfflineQueueCount(userId), 0)
+  assert.equal(responseRead, true)
   assert.equal(responseCancelled, false)
   assert.ok(Date.now() - started < 1000)
 })

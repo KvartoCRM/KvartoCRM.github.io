@@ -132,8 +132,10 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
           // Some regional routes stall while finishing an otherwise empty
           // PostgREST response. Do not cancel the original stream: aborting it
           // can interrupt a mutation whose success headers already arrived.
-          // Returning a separate empty response keeps the UI responsive while
-          // the browser is free to drain the original connection normally.
+          // Start draining it in the background so browser backpressure cannot
+          // leave the server-side request unfinished. Returning a separate
+          // empty response keeps the UI responsive while that drain continues.
+          void response.arrayBuffer().catch(() => undefined)
           const acknowledged = new Response(null, {
             status: response.status, statusText: response.statusText, headers: response.headers,
           })
