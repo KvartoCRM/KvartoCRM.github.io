@@ -129,10 +129,11 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
           && new URL(request.url).pathname.startsWith('/rest/v1/')
           && !needsRepresentation
         if (canAcknowledgeFromHeaders) {
-          // PostgREST commits before sending success headers. Some regional
-          // routes then stall or truncate the empty response stream. Waiting
-          // for that stream incorrectly queued an operation already committed.
-          void response.body?.cancel().catch(() => undefined)
+          // Some regional routes stall while finishing an otherwise empty
+          // PostgREST response. Do not cancel the original stream: aborting it
+          // can interrupt a mutation whose success headers already arrived.
+          // Returning a separate empty response keeps the UI responsive while
+          // the browser is free to drain the original connection normally.
           const acknowledged = new Response(null, {
             status: response.status, statusText: response.statusText, headers: response.headers,
           })
