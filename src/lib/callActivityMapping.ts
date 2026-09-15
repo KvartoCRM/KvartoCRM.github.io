@@ -34,6 +34,36 @@ export interface WorkCall {
 export type CallActivityInput = Omit<WorkCall, 'id'> & { dueAt?: string | null }
 
 type CloudCallRow = Record<string, unknown>
+const CALL_EVENT_MARKER = 'kvartocrm-call-v1:'
+
+export const callEventKey = (id: string) => `call-log:${id}`
+
+export const encodeCallEvent = (input: CallActivityInput) => `${CALL_EVENT_MARKER}${JSON.stringify({
+  occurred_at: input.occurred_at,
+  source: input.source,
+  outcome: input.outcome,
+  notes: input.notes,
+  metadata: input.metadata,
+})}`
+
+export const mapCallEventRow = (row: CloudCallRow): WorkCall | null => {
+  if (typeof row.external_key !== 'string' || !row.external_key.startsWith('call-log:')) return null
+  if (typeof row.notes !== 'string' || !row.notes.startsWith(CALL_EVENT_MARKER)) return null
+  try {
+    const payload = JSON.parse(row.notes.slice(CALL_EVENT_MARKER.length)) as Partial<CallActivityInput>
+    return {
+      id: String(row.id),
+      title: typeof row.title === 'string' ? row.title : '',
+      occurred_at: typeof payload.occurred_at === 'string' ? payload.occurred_at : null,
+      source: typeof payload.source === 'string' ? payload.source : null,
+      outcome: typeof payload.outcome === 'string' ? payload.outcome : null,
+      notes: typeof payload.notes === 'string' ? payload.notes : null,
+      metadata: payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null,
+    }
+  } catch {
+    return null
+  }
+}
 
 export const mapCallActivityRow = (row: CloudCallRow): WorkCall => ({
   id: String(row.id),

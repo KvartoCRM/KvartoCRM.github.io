@@ -13,7 +13,9 @@ export const fetchEvents = async (userId: string): Promise<Event[]> => {
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true, nullsFirst: false }))
   if (error) throw error
-  return (data || []).map(mapEventRow)
+  return (data || [])
+    .filter(row => typeof row.external_key !== 'string' || !row.external_key.startsWith('call-log:'))
+    .map(mapEventRow)
 }
 
 export const saveEvent = async (userId: string, input: EventUpsertInput, eventId?: string, newEventId?: string) => {
