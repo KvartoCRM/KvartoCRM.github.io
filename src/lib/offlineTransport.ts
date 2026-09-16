@@ -134,7 +134,11 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
         // fetch resolves on headers. A stalled body must remain inside the
         // deadline too. A mutation is not acknowledged until its complete
         // response has arrived; headers alone are not proof of a durable write.
-        const body = response.body ? await response.arrayBuffer() : null
+        // 204/205/304 responses deliberately have no body. Reconstructing
+        // them with Response(null, { status }) throws in WebView, even though
+        // the server has already completed the DELETE/PATCH successfully.
+        if (!response.body) return response
+        const body = await response.arrayBuffer()
         const buffered = new Response(body, {
           status: response.status, statusText: response.statusText, headers: response.headers,
         })

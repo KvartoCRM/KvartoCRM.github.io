@@ -95,6 +95,18 @@ test('temporary online-only transport never substitutes an IndexedDB response', 
   assert.equal(requestCache, 'no-store')
 })
 
+test('online-only transport preserves a successful empty delete response', async () => {
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
+  globalThis.fetch = (async () => new Response(null, { status: 204 })) as typeof fetch
+
+  const { createOnlineOnlyFetch } = await import(`./offlineTransport.ts?empty-delete=${Date.now()}`)
+  const response = await createOnlineOnlyFetch('https://direct.example')('https://direct.example/rest/v1/clients?id=eq.client-1', {
+    method: 'DELETE',
+  })
+  assert.equal(response.status, 204)
+  assert.equal(await response.text(), '')
+})
+
 test('a network-only read bypasses HTTP cache and refreshes the offline snapshot', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })

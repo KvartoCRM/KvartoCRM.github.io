@@ -1,7 +1,7 @@
 {
   "name": "kvarto-crm",
   "private": true,
-  "version": "1.3.23",
+  "version": "1.3.24",
   "description": "KvartoCRM — облачный офис для специалистов по недвижимости",
   "author": "KvartoCRM",
   "type": "module",
