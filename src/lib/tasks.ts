@@ -18,16 +18,29 @@ export const fetchTasks = async (userId: string): Promise<Task[]> => {
 
 const writeTask = async (userId: string, id: string, source: Record<string, unknown>, taskId?: string) => {
   let payload = source
+  const targetId = taskId || id
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = taskId
-      ? await supabase.from('tasks').update(payload).eq('id', taskId).eq('user_id', userId)
-      : await supabase.from('tasks').insert({ ...payload, id, user_id: userId })
-    if (!result.error) return
+      ? await supabase.from('tasks').update(payload).eq('id', taskId).eq('user_id', userId).select('id, user_id').maybeSingle()
+      : await supabase.from('tasks').insert({ ...payload, id, user_id: userId }).select('id, user_id').maybeSingle()
+    if (!result.error && result.data?.id === targetId && result.data.user_id === userId) return
+    if (!result.error) throw new Error('Сервер не подтвердил сохранение задачи')
     const compatiblePayload = withoutMissingTaskColumn(payload, result.error)
     if (!compatiblePayload) throw result.error
     payload = compatiblePayload
   }
   throw new Error('Схема задач не поддерживает сохранение')
+}
+
+const confirmTask = async (userId: string, id: string) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Сервер не подтвердил сохранение задачи')
 }
 
 export const saveTask = async (userId: string, input: TaskUpsertInput, taskId?: string, newTaskId?: string) => {
@@ -48,17 +61,22 @@ export const saveTask = async (userId: string, input: TaskUpsertInput, taskId?: 
     completed_at: input.status === 'done' ? new Date().toISOString() : null,
   }
   await writeTask(userId, id, payload, taskId)
+  await confirmTask(userId, id)
   return { id, input }
 }
 
 export const setTaskStatus = async (userId: string, task: Task, status: TaskStatus) => {
   const completedAt = status === 'done' ? new Date().toISOString() : null
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('tasks')
     .update({ status, is_completed: status === 'done', completed_at: completedAt })
     .eq('id', task.id)
     .eq('user_id', userId)
+    .select('id, user_id')
+    .maybeSingle()
   if (error) throw error
+  if (data?.id !== task.id || data.user_id !== userId) throw new Error('Сервер не подтвердил изменение статуса задачи')
+  await confirmTask(userId, task.id)
   if (status === 'done' && task.recurrenceRule && task.recurrenceRule !== 'none') {
     const nextDueDate = nextRecurringDate(task.dueDate, task.recurrenceRule)
     await writeTask(userId, crypto.randomUUID(), {
@@ -81,12 +99,16 @@ export const setTaskStatus = async (userId: string, task: Task, status: TaskStat
 }
 
 export const postponeTask = async (userId: string, task: Task, dueDate: string, dueTime: string) => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('tasks')
     .update({ due_date: dueDate, due_time: dueTime })
     .eq('id', task.id)
     .eq('user_id', userId)
+    .select('id, user_id')
+    .maybeSingle()
   if (error) throw error
+  if (data?.id !== task.id || data.user_id !== userId) throw new Error('Сервер не подтвердил перенос задачи')
+  await confirmTask(userId, task.id)
   return { task, dueDate, dueTime }
 }
 
