@@ -81,8 +81,10 @@ test('temporary online-only transport never substitutes an IndexedDB response', 
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
   let requests = 0
-  globalThis.fetch = (async () => {
+  let requestCache: RequestCache | undefined
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     requests += 1
+    requestCache = new Request(input, init).cache
     return Response.json([{ id: 'cloud-task' }])
   }) as typeof fetch
 
@@ -90,6 +92,7 @@ test('temporary online-only transport never substitutes an IndexedDB response', 
   const response = await createOnlineOnlyFetch('https://direct.example')('https://direct.example/rest/v1/tasks')
   assert.deepEqual(await response.json(), [{ id: 'cloud-task' }])
   assert.equal(requests, 1)
+  assert.equal(requestCache, 'no-store')
 })
 
 test('a network-only read bypasses HTTP cache and refreshes the offline snapshot', async () => {

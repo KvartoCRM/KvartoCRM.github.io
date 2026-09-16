@@ -159,7 +159,10 @@ export const createOnlineOnlyFetch = (supabaseUrl: string) => async (input: Requ
   const url = new URL(request.url)
   if (url.origin !== new URL(supabaseUrl).origin) return nativeFetch(request)
   const timeout = url.pathname.includes('/storage/v1/') ? FILE_NETWORK_TIMEOUT_MS : INTERACTIVE_NETWORK_TIMEOUT_MS
-  return fetchWithTimeout(request, timeout)
+  // Android WebView may reuse a successful REST list response after a write.
+  // The CRM is temporarily online-only, so every Supabase read must bypass the
+  // HTTP cache as well as IndexedDB; otherwise the confirmed new row is hidden.
+  return fetchWithTimeout(new Request(request, { cache: 'no-store' }), timeout)
 }
 
 // Existing installations can still contain records queued by the legacy
