@@ -26,9 +26,10 @@ export const useTasks = (userId?: string) => {
   }
   const refreshRelated = async () => {
     await Promise.all([
-      // Keep the optimistic task visible. An immediate refetch can finish from
-      // stale device cache while a slow mobile response is still completing.
-      queryClient.invalidateQueries({ queryKey, refetchType: 'none' }),
+      // This is the control read after every task write. In the temporary
+      // online-only mode it is always a direct Supabase read, so a completed
+      // task cannot be resurrected from an IndexedDB snapshot after restart.
+      queryClient.refetchQueries({ queryKey, type: 'active' }, { cancelRefetch: true, throwOnError: true }),
       userId ? queryClient.invalidateQueries({ queryKey: crmQueryKeys.overview(userId) }) : Promise.resolve(),
     ])
   }

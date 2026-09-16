@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { configureOfflineSync, createOfflineFetch, orderEndpointsForOrigin } from './offlineTransport'
+import { configureLegacyQueueTransport, configureOfflineSync, createOnlineOnlyFetch, orderEndpointsForOrigin } from './offlineTransport'
 import { isNetworkFailure } from './syncDiagnostics'
 
 const [supabaseUrl, supabaseFallbackUrl] = orderEndpointsForOrigin(
@@ -14,8 +14,13 @@ export const authStorageKey = `sb-${supabaseProjectRef}-auth-token`
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { storageKey: authStorageKey },
-  global: { fetch: createOfflineFetch(supabaseUrl, supabaseFallbackUrl) },
+  // Do not serve CRM data from device snapshots until Android transport and
+  // entity-level sync are proven on a physical device. CapacitorHttp still
+  // intercepts this direct fetch in the packaged Android app.
+  global: { fetch: createOnlineOnlyFetch(supabaseUrl) },
 })
+
+configureLegacyQueueTransport(supabaseUrl, supabaseAnonKey)
 
 export const checkCloudConnection = async () => {
   if (!navigator.onLine) return false

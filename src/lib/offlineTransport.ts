@@ -131,28 +131,9 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
     return await Promise.race([
       (async () => {
         const response = await nativeFetch(new Request(request, { signal: controller.signal }))
-        const method = request.method.toUpperCase()
-        const needsRepresentation = request.headers.get('prefer')?.includes('return=representation')
-        const canAcknowledgeFromHeaders = response.ok
-          && !['GET', 'HEAD'].includes(method)
-          && new URL(request.url).pathname.startsWith('/rest/v1/')
-          && !needsRepresentation
-        if (canAcknowledgeFromHeaders) {
-          // Some regional routes stall while finishing an otherwise empty
-          // PostgREST response. Do not cancel the original stream: aborting it
-          // can interrupt a mutation whose success headers already arrived.
-          // Start draining it in the background so browser backpressure cannot
-          // leave the server-side request unfinished. Returning a separate
-          // empty response keeps the UI responsive while that drain continues.
-          void response.arrayBuffer().catch(() => undefined)
-          const acknowledged = new Response(null, {
-            status: response.status, statusText: response.statusText, headers: response.headers,
-          })
-          Object.defineProperty(acknowledged, 'url', { value: response.url })
-          return acknowledged
-        }
         // fetch resolves on headers. A stalled body must remain inside the
-        // deadline too, otherwise JSON decoding can hang indefinitely.
+        // deadline too. A mutation is not acknowledged until its complete
+        // response has arrived; headers alone are not proof of a durable write.
         const body = response.body ? await response.arrayBuffer() : null
         const buffered = new Response(body, {
           status: response.status, statusText: response.statusText, headers: response.headers,
@@ -166,6 +147,26 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
     globalThis.clearTimeout(timeout)
     request.signal.removeEventListener('abort', abort)
   }
+}
+
+/**
+ * Temporary production transport while Android synchronization is repaired.
+ * It deliberately bypasses IndexedDB snapshots and the mutation queue: a UI
+ * write either receives a complete direct Supabase response or fails visibly.
+ */
+export const createOnlineOnlyFetch = (supabaseUrl: string) => async (input: RequestInfo | URL, init?: RequestInit) => {
+  const request = new Request(input, init)
+  const url = new URL(request.url)
+  if (url.origin !== new URL(supabaseUrl).origin) return nativeFetch(request)
+  const timeout = url.pathname.includes('/storage/v1/') ? FILE_NETWORK_TIMEOUT_MS : INTERACTIVE_NETWORK_TIMEOUT_MS
+  return fetchWithTimeout(request, timeout)
+}
+
+// Existing installations can still contain records queued by the legacy
+// client. Keep a direct configuration solely to deliver those records; new
+// application requests never enter that queue in online-only mode.
+export const configureLegacyQueueTransport = (url: string, apiKey: string, fallback?: string) => {
+  transportConfig = { url, apiKey, fallback }
 }
 
 export const rewriteRequestUrl = (urlValue: string, endpoint: string) => {
@@ -862,6 +863,46 @@ const sendQueuedEntry = async (entry: QueuedRequest, headers: Headers) => {
   })
 }
 
+const queuedIdentity = (entry: QueuedRequest) => {
+  const source = new URL(entry.url)
+  const id = source.searchParams.get('id')
+  if (id?.startsWith('eq.')) return { id: id.slice(3) }
+  try {
+    const parsed = entry.body ? JSON.parse(entry.body) : null
+    const row = Array.isArray(parsed) ? parsed[0] : parsed
+    if (!row || typeof row !== 'object') return null
+    const values = row as Record<string, unknown>
+    if (typeof values.id === 'string') return { id: values.id }
+    const fields = (conflictFields[entry.table] ?? '').split(',').filter(Boolean)
+    if (fields.length && fields.every(field => values[field] !== undefined)) {
+      return Object.fromEntries(fields.map(field => [field, values[field]]))
+    }
+  } catch {
+    // A malformed legacy payload must stay visible in the queue for repair.
+  }
+  return null
+}
+
+const verifyQueuedEntry = async (entry: QueuedRequest, headers: Headers) => {
+  const identity = queuedIdentity(entry)
+  if (!identity || !transportConfig) return false
+  const url = new URL(`/rest/v1/${entry.table}`, transportConfig.url)
+  url.searchParams.set('select', '*')
+  url.searchParams.set('limit', '1')
+  Object.entries(identity).forEach(([field, value]) => url.searchParams.set(field, `eq.${String(value)}`))
+  const readHeaders = new Headers(headers)
+  readHeaders.delete('prefer')
+  readHeaders.set('accept', 'application/json')
+  const response = await fetchWithTimeout(new Request(url, { headers: readHeaders, cache: 'no-store' }), QUEUE_WRITE_TIMEOUT_MS)
+  if (!response.ok) return false
+  const rows = await response.json() as Record<string, unknown>[]
+  if (entry.method === 'DELETE') return rows.length === 0
+  const expected = entry.body ? (Array.isArray(JSON.parse(entry.body)) ? JSON.parse(entry.body)[0] : JSON.parse(entry.body)) : {}
+  const row = rows[0]
+  return Boolean(row && expected && typeof expected === 'object'
+    && Object.entries(expected as Record<string, unknown>).every(([field, value]) => JSON.stringify(row[field]) === JSON.stringify(value)))
+}
+
 export const flushOfflineQueue = async () => {
   if (syncPromise) return syncPromise
   syncPromise = (async () => {
@@ -890,8 +931,15 @@ export const flushOfflineQueue = async () => {
         }
         const response = await sendQueuedEntry(entry, headers)
         if (response.ok) {
-          await runStore(QUEUE_STORE, 'readwrite', store => store.delete(entry.id))
-          synced += 1
+          if (await verifyQueuedEntry(entry, headers)) {
+            await runStore(QUEUE_STORE, 'readwrite', store => store.delete(entry.id))
+            synced += 1
+            continue
+          }
+          entry.attempts += 1
+          entry.lastError = 'Сервер не подтвердил итоговую запись. Изменение оставлено в очереди.'
+          await runStore(QUEUE_STORE, 'readwrite', store => store.put(entry))
+          blockedEntities.add(entityKey)
           continue
         }
         if (response.status === 401 || response.status === 403) {

@@ -36,20 +36,23 @@ test('a response that stalls after headers times out and uses the read fallback'
   assert.ok(Date.now() - started < 9000)
 })
 
-test('a successful table mutation is acknowledged from headers when its empty body stalls', async () => {
+test('a successful table mutation waits for its complete response body', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
   const userId = '00000000-0000-4000-8000-000000000051'
   let responseCancelled = false
   let responseRead = false
+  let responseController: ReadableStreamDefaultController<Uint8Array> | undefined
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
     return new Response(new ReadableStream({
       start(controller) {
+        responseController = controller
         request.signal.addEventListener('abort', () => controller.error(request.signal.reason), { once: true })
       },
       pull() {
         responseRead = true
+        responseController?.close()
       },
       cancel() {
         responseCancelled = true
@@ -72,6 +75,21 @@ test('a successful table mutation is acknowledged from headers when its empty bo
   assert.equal(responseRead, true)
   assert.equal(responseCancelled, false)
   assert.ok(Date.now() - started < 1000)
+})
+
+test('temporary online-only transport never substitutes an IndexedDB response', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
+  let requests = 0
+  globalThis.fetch = (async () => {
+    requests += 1
+    return Response.json([{ id: 'cloud-task' }])
+  }) as typeof fetch
+
+  const { createOnlineOnlyFetch } = await import(`./offlineTransport.ts?online-only=${Date.now()}`)
+  const response = await createOnlineOnlyFetch('https://direct.example')('https://direct.example/rest/v1/tasks')
+  assert.deepEqual(await response.json(), [{ id: 'cloud-task' }])
+  assert.equal(requests, 1)
 })
 
 test('a network-only read bypasses HTTP cache and refreshes the offline snapshot', async () => {
@@ -261,14 +279,16 @@ test('queue replay repairs payloads created against a newer task schema', async 
 
   const userId = '00000000-0000-4000-8000-000000000021'
   const postedBodies: Array<Record<string, unknown>> = []
+  let savedTask: Record<string, unknown> | null = null
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
-    if (request.method !== 'POST') return Response.json([])
+    if (request.method !== 'POST') return Response.json(savedTask ? [savedTask] : [])
     const body = JSON.parse(await request.text()) as Record<string, unknown>
     postedBodies.push(body)
     if ('smart_criteria' in body) {
       return Response.json({ message: "Could not find the 'smart_criteria' column of 'tasks' in the schema cache" }, { status: 400 })
     }
+    savedTask = body
     return Response.json(body, { status: 201 })
   }) as typeof fetch
 
@@ -298,14 +318,20 @@ test('a rejected legacy record does not block a newer record in the same table',
 
   const userId = '00000000-0000-4000-8000-000000000031'
   const acceptedIds: string[] = []
+  const savedTasks = new Map<string, { id: string; user_id: string; title: string }>()
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
-    if (request.method !== 'POST') return Response.json([])
+    if (request.method !== 'POST') {
+      const id = new URL(request.url).searchParams.get('id')?.replace(/^eq\./, '')
+      const task = id ? savedTasks.get(id) : undefined
+      return Response.json(task ? [task] : [])
+    }
     const body = JSON.parse(await request.text()) as { id: string }
     if (body.id === 'legacy-task') {
       return Response.json({ message: 'Legacy record is permanently rejected' }, { status: 422 })
     }
     acceptedIds.push(body.id)
+    savedTasks.set(body.id, body as { id: string; user_id: string; title: string })
     return Response.json(body, { status: 201 })
   }) as typeof fetch
 
