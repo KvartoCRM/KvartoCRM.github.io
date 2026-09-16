@@ -183,7 +183,7 @@ const OfflineSyncStatus = () => {
     : status.syncing || status.pending > 0 ? 'syncing' : 'synced'
   const Icon = state === 'offline' ? CloudOff : state === 'syncing' ? RefreshCw : Check
   const label = state === 'offline'
-    ? sessionProblem ? 'Требуется вход' : 'Локальная копия'
+    ? sessionProblem ? 'Требуется вход' : 'Облако недоступно'
     : state === 'syncing' ? status.pending ? `В очереди: ${status.pending}` : 'Проверяем связь' : 'Синхронизировано'
   const buttonLabel = state === 'offline'
     ? sessionProblem ? 'Нужен вход' : 'Нет связи'
@@ -201,19 +201,19 @@ const OfflineSyncStatus = () => {
       <AnchoredPopover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={340} ariaLabel="Состояние облака" className="overflow-y-auto p-4">
         <div className="flex items-start gap-3">
           <div className={`rounded-xl p-3 ${state === 'offline' ? 'bg-amber-500/10' : 'lumi-accent-soft'}`}><Cloud className={`h-5 w-5 ${iconClass}`} /></div>
-          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Копия на устройстве доступна, но чтение и сохранение сейчас не подтверждены.' : state === 'offline' ? 'Работайте дальше: изменения остаются на устройстве и отправятся после восстановления связи.' : status.pending > 0 ? 'Часть изменений сохранена на устройстве и ещё ожидает отправки.' : 'Изменения на этом устройстве синхронизированы.'}</p></div>
+          <div className="min-w-0"><p className="lumi-text font-semibold">{label}</p><p className="lumi-muted mt-1 text-xs leading-5">{sessionProblem ? 'Сессия не подтверждена. Чтение и сохранение сейчас недоступны.' : state === 'offline' ? 'Текущие данные могут быть устаревшими. Новые изменения не считаются сохранёнными, пока сервер не подтвердит их.' : status.pending > 0 ? 'В очереди остались изменения из прежних версий приложения. Они будут удалены только после проверки на сервере.' : 'Сервер подтвердил соединение и отсутствие ожидающих изменений.'}</p></div>
         </div>
 
         <div className="lumi-panel-muted mt-4 space-y-3 rounded-xl border p-3 text-xs">
           <div className="flex items-center justify-between gap-3"><span className="lumi-muted flex items-center gap-2"><Wifi className="h-4 w-4" />Интернет</span><span className="lumi-muted-strong font-medium">{navigator.onLine ? 'Есть соединение' : 'Нет соединения'}</span></div>
-          <div className="flex items-center justify-between gap-3"><span className="lumi-muted flex items-center gap-2"><HardDriveDownload className="h-4 w-4" />На устройстве</span><span className="lumi-muted-strong font-medium">{status.pending ? `Ждут отправки: ${status.pending}` : 'Очередь пуста'}</span></div>
+          <div className="flex items-center justify-between gap-3"><span className="lumi-muted flex items-center gap-2"><HardDriveDownload className="h-4 w-4" />Старые изменения</span><span className="lumi-muted-strong font-medium">{status.pending ? `Ждут проверки: ${status.pending}` : 'Очередь пуста'}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="lumi-muted">Последняя синхронизация</span><span className="lumi-muted-strong text-right font-medium">{lastSyncedAt ? new Date(lastSyncedAt).toLocaleString('ru-RU') : 'Ещё не было'}</span></div>
         </div>
 
         {status.error && <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{status.error}</span></div>}
         {issues.length > 0 && <div className="mt-3 space-y-2"><p className="lumi-muted text-xs font-semibold uppercase tracking-wide">Не отправлено</p>{issues.slice(0, 3).map(issue => { const description = describeQueueIssue(issue); return <div key={issue.id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs"><div className="flex items-center justify-between gap-3"><span className="lumi-text font-semibold">{description.entity}</span><span className="lumi-muted">Попыток: {issue.attempts}</span></div><p className="mt-1 text-amber-200">{description.reason}</p><p className="lumi-muted mt-1">Сохранено на устройстве {new Date(issue.createdAt).toLocaleString('ru-RU')}</p></div> })}</div>}
         <button type="button" disabled={status.syncing || !navigator.onLine} onClick={() => void synchronize(true)} className="lumi-gradient-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${status.syncing ? 'animate-spin' : ''}`} />{status.pending ? 'Повторить отправку' : 'Проверить синхронизацию'}</button>
-        <p className="lumi-muted mt-3 text-[0.7rem] leading-5">KvartoCRM не должен требовать VPN. Если интернет есть, но синхронизация недоступна, приложение использует копию на устройстве и повторяет отправку автоматически.</p>
+        <p className="lumi-muted mt-3 text-[0.7rem] leading-5">KvartoCRM не должен требовать VPN. «Синхронизировано» показывается только после проверки сессии и сервера.</p>
       </AnchoredPopover>
     </div>
   )
