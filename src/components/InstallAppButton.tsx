@@ -67,7 +67,7 @@ const InstallAppButton = ({ compact = false }: InstallAppButtonProps) => {
         aria-label="Установить KvartoCRM"
       >
         {compact ? <Download className="h-5 w-5" /> : <MonitorDown className="h-5 w-5" />}
-        <span>{compact ? 'Скачать' : 'Скачать приложение'}</span>
+        <span className={compact ? 'hidden sm:inline' : undefined}>{compact ? 'Скачать' : 'Скачать приложение'}</span>
       </button>
       {showHint && (
         <div className="lumi-theme-menu lumi-muted-strong absolute right-0 top-full z-50 mt-2 w-72 rounded-xl p-4 text-xs leading-5">

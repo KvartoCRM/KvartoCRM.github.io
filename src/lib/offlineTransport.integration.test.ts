@@ -97,6 +97,46 @@ test('a network-only read bypasses HTTP cache and refreshes the offline snapshot
   assert.deepEqual(await (await offlineFetch(url, { headers: { authorization: `Bearer ${jwtFor(userId)}` } })).json(), [{ id: 'call-1', user_id: userId, external_key: 'call-log:call-1' }])
 })
 
+test('a late background read cannot erase a newer successful local mutation', async () => {
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })
+  const userId = '00000000-0000-4000-8000-000000000053'
+  let releaseLateRead: (() => void) | undefined
+  let getCount = 0
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    if (request.method === 'POST') return new Response(null, { status: 201 })
+    getCount += 1
+    if (getCount === 1) return Response.json([])
+    if (getCount === 2) {
+      await new Promise<void>(resolve => { releaseLateRead = resolve })
+      return Response.json([])
+    }
+    return Response.json([])
+  }) as typeof fetch
+
+  const { createOfflineFetch, setOfflineSession } = await import(`./offlineTransport.ts?late-read=${Date.now()}`)
+  setOfflineSession(userId)
+  const offlineFetch = createOfflineFetch('https://direct.example')
+  const url = `https://direct.example/rest/v1/tasks?user_id=eq.${userId}&deleted_at=is.null`
+  const headers = { authorization: `Bearer ${jwtFor(userId)}`, 'content-type': 'application/json' }
+
+  assert.deepEqual(await (await offlineFetch(url, { headers })).json(), [])
+  assert.deepEqual(await (await offlineFetch(url, { headers })).json(), [])
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.ok(releaseLateRead)
+
+  const task = { id: 'task-new', user_id: userId, title: 'Новая задача', deleted_at: null }
+  assert.equal((await offlineFetch('https://direct.example/rest/v1/tasks', {
+    method: 'POST', headers, body: JSON.stringify(task),
+  })).status, 201)
+  releaseLateRead?.()
+  await new Promise(resolve => setTimeout(resolve, 0))
+
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, value: false })
+  assert.deepEqual(await (await offlineFetch(url, { headers })).json(), [task])
+})
+
 test('a queued call survives an endpoint change and replays once through the new primary', async () => {
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: new IDBFactory() })
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } })

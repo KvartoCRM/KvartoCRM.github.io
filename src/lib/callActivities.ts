@@ -5,21 +5,17 @@ import { moveToTrash } from './trash'
 
 export const fetchCallActivities = async (userId: string): Promise<WorkCall[]> => {
   const readModern = (networkOnly: boolean) => fetchAllRows(() => {
-    const query = supabase.from('events').select('id,title,notes,external_key').eq('user_id', userId).is('deleted_at', null).like('external_key', 'call-log:%')
+    // Filter call-log rows locally. Some Android/regional WebView routes return
+    // an empty 200 response for PostgREST `like` expressions containing `%`,
+    // even though the same authenticated request without that filter contains
+    // the rows. The mapper already rejects every non-call event.
+    // Keep filter columns in the projection. The offline merge layer must be
+    // able to reapply the same tenant/trash filters when queued writes exist.
+    const query = supabase.from('events').select('id,user_id,title,notes,external_key,deleted_at').eq('user_id', userId).is('deleted_at', null)
     return networkOnly ? query.setHeader('x-lumicrm-network-only', 'true') : query
   })
   const modernPromise = typeof navigator !== 'undefined' && navigator.onLine
-    ? readModern(true).catch(error => {
-      const details = error && typeof error === 'object' ? error as Record<string, unknown> : {}
-      console.error('[KvartoCRM call network diagnostic]', JSON.stringify({
-        name: details.name,
-        message: details.message,
-        code: details.code,
-        status: details.status,
-        details: details.details,
-      }))
-      return readModern(false)
-    })
+    ? readModern(true).catch(() => readModern(false))
     : readModern(false)
   const [eventsResult, legacyResult] = await Promise.allSettled([
     modernPromise,

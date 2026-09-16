@@ -89,6 +89,15 @@ let syncTimer: number | null = null
 let transportConfig: { url: string; fallback?: string; apiKey: string } | null = null
 let activeUserId: string | null = null
 let forcedNetworkRefreshUntil = 0
+const tableMutationEpochs = new Map<string, number>()
+
+const mutationEpochKey = (userId: string, table: string) => `${userId}:${table}`
+const currentMutationEpoch = (userId: string, table: string) => tableMutationEpochs.get(mutationEpochKey(userId, table)) ?? 0
+const bumpMutationEpoch = (userId: string, table: string) => {
+  const next = currentMutationEpoch(userId, table) + 1
+  tableMutationEpochs.set(mutationEpochKey(userId, table), next)
+  return next
+}
 
 export const setOfflineSession = (userId: string | null) => {
   activeUserId = userId
@@ -418,22 +427,34 @@ export const prepareOfflinePayload = (table: string, body: unknown) => {
   return Array.isArray(body) ? prepared : prepared[0]
 }
 
-const cacheResponse = async (request: Request, response: Response, userId: string, table: string) => {
+const cacheResponse = async (
+  request: Request,
+  response: Response,
+  userId: string,
+  table: string,
+  expectedMutationEpoch = currentMutationEpoch(userId, table),
+) => {
   if (!hasIndexedDb() || !response.ok) return
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('json')) return
+  const body = await response.clone().text()
+  // A GET started before a local write can finish afterwards with the old
+  // server snapshot. Never let that late response erase the record which the
+  // mutation has already placed in the device cache.
+  if (currentMutationEpoch(userId, table) !== expectedMutationEpoch) return false
   const record: CachedResponse = {
     key: cacheKey(userId, request),
     userId,
     userTable: `${userId}:${table}`,
     table,
     url: request.url,
-    body: await response.clone().text(),
+    body,
     status: response.status,
     headers: cloneResponseHeaders(response.headers),
     updatedAt: Date.now(),
   }
   await runStore(RESPONSE_STORE, 'readwrite', store => store.put(record)).catch(() => undefined)
+  return true
 }
 
 const responseFromCache = (cached: CachedResponse) => new Response(cached.body, {
@@ -626,11 +647,12 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
   const method = request.method.toUpperCase()
   transportConfig = { url: supabaseUrl, fallback: fallbackUrl, apiKey: request.headers.get('apikey') ?? '' }
   if (networkOnly || method === 'HEAD') {
+    const readEpoch = currentMutationEpoch(userId, table)
     const forcedRequest = method === 'GET' ? new Request(request, { cache: 'no-store' }) : request
     let response = await fetchWithFallback(forcedRequest, INTERACTIVE_NETWORK_TIMEOUT_MS, fallbackUrl)
     if (networkOnly && method === 'GET' && response.ok) {
       response = await mergePendingMutationsIntoResponse(request, response, userId, table)
-      await cacheResponse(request, response, userId, table)
+      await cacheResponse(request, response, userId, table, readEpoch)
       emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
     }
     return response
@@ -643,6 +665,7 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
 
   if (method === 'GET' || method === 'HEAD') {
     if (isOnline()) {
+      const readEpoch = currentMutationEpoch(userId, table)
       const cached = await findCachedResponse(request, userId, table)
       const forceNetworkRead = method === 'GET' && isWorkspaceNetworkRefreshForced()
       const networkRequest = fetchWithFallback(new Request(request, {
@@ -653,9 +676,9 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
         void networkRequest.then(response => mergePendingMutationsIntoResponse(request, response, userId, table)).then(async response => {
           if (!response.ok) return
           const networkBody = await response.clone().text()
-          await cacheResponse(request, response, userId, table)
+          const cachedFreshResponse = await cacheResponse(request, response, userId, table, readEpoch)
           emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
-          if (networkBody !== cachedBody && typeof window !== 'undefined') {
+          if (cachedFreshResponse && networkBody !== cachedBody && typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('lumicrm:remote-data-changed', { detail: { table, userId } }))
           }
         }).catch(async () => {
@@ -671,7 +694,7 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
       try {
         const response = await mergePendingMutationsIntoResponse(request, await networkRequest, userId, table)
         if (response.ok) {
-          await cacheResponse(request, response, userId, table)
+          await cacheResponse(request, response, userId, table, readEpoch)
           emitStatus({ online: true, pending: await getOfflineQueueCount(userId), syncing: false })
         }
         if (response.status < 500) return response
@@ -693,6 +716,7 @@ export const createOfflineFetch = (supabaseUrl: string, fallbackUrl?: string) =>
 
   // Preserve ordering only for mutations of the same record. A stuck task must
   // not force an unrelated contact, property or deal into the offline queue.
+  bumpMutationEpoch(userId, table)
   if (isOnline() && !await hasQueuedEntityConflict(request, userId, table)) {
     try {
       const response = await fetchWithFallback(request.clone(), WRITE_TIMEOUT_MS, fallbackUrl)
