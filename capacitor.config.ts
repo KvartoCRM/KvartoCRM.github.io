@@ -10,7 +10,10 @@ const config: CapacitorConfig = {
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true,
+      // Native HTTP interception acknowledges task writes but may subsequently
+      // hand WebView an outdated REST list. Let the authenticated WebView use
+      // its normal HTTPS stack, matching the working browser client.
+      enabled: false,
     },
     LocalNotifications: {
       smallIcon: 'ic_launcher_foreground',
