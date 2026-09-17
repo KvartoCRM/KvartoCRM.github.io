@@ -82,17 +82,23 @@ test('temporary online-only transport never substitutes an IndexedDB response', 
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })
   let requests = 0
   let requestCache: RequestCache | undefined
+  let networkOnlyHeader: string | null = null
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     requests += 1
-    requestCache = new Request(input, init).cache
+    const request = new Request(input, init)
+    requestCache = request.cache
+    networkOnlyHeader = request.headers.get('x-lumicrm-network-only')
     return Response.json([{ id: 'cloud-task' }])
   }) as typeof fetch
 
   const { createOnlineOnlyFetch } = await import(`./offlineTransport.ts?online-only=${Date.now()}`)
-  const response = await createOnlineOnlyFetch('https://direct.example')('https://direct.example/rest/v1/tasks')
+  const response = await createOnlineOnlyFetch('https://direct.example')('https://direct.example/rest/v1/tasks', {
+    headers: { 'x-lumicrm-network-only': 'true' },
+  })
   assert.deepEqual(await response.json(), [{ id: 'cloud-task' }])
   assert.equal(requests, 1)
   assert.equal(requestCache, 'no-store')
+  assert.equal(networkOnlyHeader, null)
 })
 
 test('online-only transport preserves a successful empty delete response', async () => {

@@ -4,6 +4,7 @@ const ALLOWED_ORIGINS = new Set([
   'https://lumi-crm.github.io',
   'https://lumicrm.pages.dev',
   'https://localhost', // Packaged Capacitor Android app.
+  'http://localhost', // Capacitor Android default scheme on older WebViews.
   'capacitor://localhost',
   'null', // Packaged Electron file:// renderer; CORS is not authentication.
   ...['localhost', '127.0.0.1'].flatMap(host => [3000, 4173, 5173].map(port => `http://${host}:${port}`)),
@@ -11,7 +12,7 @@ const ALLOWED_ORIGINS = new Set([
 const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 // PostgREST adds Accept-Profile on reads and Content-Profile on writes. Both
 // must be present here or a browser/WebView rejects the request at preflight.
-const ALLOWED_HEADERS = 'accept,accept-profile,authorization,apikey,content-type,content-profile,x-client-info,x-supabase-api-version,prefer,range,range-unit,content-range,x-upsert'
+const ALLOWED_HEADERS = 'accept,accept-profile,authorization,apikey,content-type,content-profile,x-client-info,x-supabase-api-version,prefer,range,range-unit,content-range,x-upsert,x-lumicrm-network-only'
 const MAX_BODY_BYTES = 26 * 1024 * 1024
 
 const responseHeaders = (request, headers) => {

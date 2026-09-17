@@ -162,6 +162,10 @@ export const createOnlineOnlyFetch = (supabaseUrl: string) => async (input: Requ
   const request = new Request(input, init)
   const url = new URL(request.url)
   if (url.origin !== new URL(supabaseUrl).origin) return nativeFetch(request)
+  // This is an internal transport marker, not an HTTP header. Forwarding it
+  // through the Cloudflare gateway triggers a CORS preflight rejection and
+  // makes a healthy account look offline.
+  request.headers.delete('x-lumicrm-network-only')
   const timeout = url.pathname.includes('/storage/v1/') ? FILE_NETWORK_TIMEOUT_MS : INTERACTIVE_NETWORK_TIMEOUT_MS
   // Android WebView may reuse a successful REST list response after a write.
   // The CRM is temporarily online-only, so every Supabase read must bypass the

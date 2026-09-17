@@ -57,7 +57,7 @@ test('gateway forwards bearer credentials only to the fixed upstream, without co
 })
 
 test('gateway permits native origins and rejects foreign browser origins before upstream work', async () => {
-  for (const value of [origin, pagesOrigin, 'https://localhost', 'null']) {
+  for (const value of [origin, pagesOrigin, 'https://localhost', 'http://localhost', 'null']) {
     const response = await handleGatewayRequest(new Request(`${gateway}/rest/v1/tasks`, {
       method: 'OPTIONS',
       headers: {
@@ -68,6 +68,7 @@ test('gateway permits native origins and rejects foreign browser origins before 
     }))
     assert.equal(response.status, 204)
     assert.equal(response.headers.get('access-control-allow-origin'), value)
+    assert.match(response.headers.get('access-control-allow-headers') || '', /x-lumicrm-network-only/)
     const allowedHeaders = response.headers.get('access-control-allow-headers')
     assert.match(allowedHeaders, /accept-profile/)
     assert.match(allowedHeaders, /content-profile/)
