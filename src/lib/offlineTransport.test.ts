@@ -54,7 +54,7 @@ test('production uses the Cloudflare gateway first on GitHub, Pages and packaged
   const config = readFileSync(new URL('../../.env.production', import.meta.url), 'utf8')
   const primary = config.match(/^VITE_SUPABASE_URL=(.+)$/m)?.[1].trim()
   const fallback = config.match(/^VITE_SUPABASE_FALLBACK_URL=(.+)$/m)?.[1].trim()
-  assert.equal(primary, 'https://lumicrm.pages.dev')
+  assert.equal(primary, 'https://lumicrm-gateway.denzotrail.workers.dev')
   assert.equal(fallback, 'https://flwsglkkarikekkopdbu.supabase.co')
   for (const origin of ['https://kvartocrm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
     assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, fallback])
