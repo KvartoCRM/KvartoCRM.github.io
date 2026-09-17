@@ -137,7 +137,7 @@ const fetchWithTimeout = async (request: Request, timeoutMs: number) => {
         // 204/205/304 responses deliberately have no body. Reconstructing
         // them with Response(null, { status }) throws in WebView, even though
         // the server has already completed the DELETE/PATCH successfully.
-        if (!response.body) return response
+        if (!response.body || [204, 205, 304].includes(response.status)) return response
         const body = await response.arrayBuffer()
         const buffered = new Response(body, {
           status: response.status, statusText: response.statusText, headers: response.headers,

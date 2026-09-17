@@ -50,14 +50,14 @@ test('a legacy gateway configuration keeps its primary outside Pages', () => {
   )
 })
 
-test('production uses direct Supabase first on GitHub, Pages and packaged apps', () => {
+test('production uses the Cloudflare gateway first on GitHub, Pages and packaged apps', () => {
   const config = readFileSync(new URL('../../.env.production', import.meta.url), 'utf8')
   const primary = config.match(/^VITE_SUPABASE_URL=(.+)$/m)?.[1].trim()
   const fallback = config.match(/^VITE_SUPABASE_FALLBACK_URL=(.+)$/m)?.[1].trim()
-  assert.equal(primary, 'https://flwsglkkarikekkopdbu.supabase.co')
-  assert.equal(fallback, undefined)
+  assert.equal(primary, 'https://lumicrm.pages.dev')
+  assert.equal(fallback, 'https://flwsglkkarikekkopdbu.supabase.co')
   for (const origin of ['https://kvartocrm.github.io', 'https://lumicrm.pages.dev', 'https://localhost', 'capacitor://localhost', 'null']) {
-    assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, undefined])
+    assert.deepEqual(orderEndpointsForOrigin(primary!, fallback, origin), [primary, fallback])
   }
   assert.match(config, /^VITE_SUPABASE_PROJECT_REF=flwsglkkarikekkopdbu\s*$/m)
 })
