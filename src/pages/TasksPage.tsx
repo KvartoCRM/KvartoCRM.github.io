@@ -1,3 +1,5 @@
+import ListFilters from '../components/ListFilters'
+import { inDateRange, matchesText, sortRecords } from '../lib/listFiltering'
 import { useMemo, useState } from 'react'
 import { AlarmClockPlus, Calendar, CheckCircle2, Clock, Edit, ListChecks, Plus, RefreshCw, Repeat2, RotateCcw, Target, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -48,6 +50,7 @@ const TasksPage = () => {
     mutationPending,
   } = useTasks(user?.id)
   const [error, setError] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [activeQuadrant, setActiveQuadrant] = useState<Quadrant>('plan')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -164,15 +167,20 @@ const TasksPage = () => {
     } catch { setError('Не удалось обновить подзадачу.') }
   }
 
+  const filteredTasks = useMemo(() => sortRecords(tasks.filter(task =>
+    matchesText(filters.query || '', [task.title, task.description])
+    && (!filters.status || (isCompleted(task) ? 'done' : task.status) === filters.status)
+    && (!filters.priority || task.priority === filters.priority)
+    && inDateRange(task.dueDate, filters.from, filters.to)
+  ), task => filters.sort === 'name' ? task.title : filters.sort === 'created' ? Date.parse(task.createdAt) : filters.sort === 'priority' ? ({low:1,medium:2,high:3}[task.priority]) : task.dueDate ? task.dueDate + 'T' + (task.dueTime || '00:00') : undefined, filters.direction || 'asc'), [tasks, filters])
+
   const grouped = useMemo(() => Object.fromEntries(matrix.map(item => {
-    const quadrantTasks = tasks.filter(task => (task.eisenhowerQuadrant || 'plan') === item.id)
+    const quadrantTasks = filteredTasks.filter(task => (task.eisenhowerQuadrant || 'plan') === item.id)
     return [item.id, {
       planned: quadrantTasks.filter(task => !isCompleted(task)),
-      completed: quadrantTasks
-        .filter(isCompleted)
-        .sort((left, right) => (right.completedAt || right.createdAt || '').localeCompare(left.completedAt || left.createdAt || '')),
+      completed: quadrantTasks.filter(isCompleted),
     }]
-  })) as Record<Quadrant, TaskGroup>, [tasks])
+  })) as Record<Quadrant, TaskGroup>, [filteredTasks])
 
   const activeSection = matrix.find(item => item.id === activeQuadrant) || matrix[1]
   const activeTasks = grouped[activeQuadrant]
@@ -240,6 +248,12 @@ const TasksPage = () => {
         </button>
       </div>
 
+      <ListFilters values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredTasks.length} total={tasks.length} defaultSort="due" defaultDirection="asc" sortOptions={[{value:'due',label:'Срок'},{value:'created',label:'Дата создания'},{value:'name',label:'Название'},{value:'priority',label:'Приоритет'}]} fields={[
+        {key:'query',label:'Название или описание'},
+        {key:'status',label:'Статус',options:[{value:'todo',label:'К выполнению'},{value:'inprogress',label:'В работе'},{value:'done',label:'Выполнено'}]},
+        {key:'priority',label:'Приоритет',options:[{value:'high',label:'Высокий'},{value:'medium',label:'Средний'},{value:'low',label:'Низкий'}]},
+        {key:'from',label:'Срок с',type:'date'},{key:'to',label:'Срок по',type:'date'},
+      ]}><p className="lumi-muted text-xs">Фильтры применяются ко всем четырём направлениям. Выберите направление ниже.</p></ListFilters>
       {(error || loadError) && <div className="flex flex-col gap-3 rounded-xl border border-red-700/40 bg-red-950/20 px-4 py-3 text-sm text-red-300 sm:flex-row sm:items-center sm:justify-between"><span>{error || 'Не удалось обновить задачи из облака. Показана копия с устройства.'}</span>{loadError && <button type="button" onClick={() => void refetch()} className="lumi-control inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-semibold"><RefreshCw className="h-4 w-4" />Повторить</button>}</div>}
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" role="tablist" aria-label="Матрица Эйзенхауэра">

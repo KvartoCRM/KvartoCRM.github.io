@@ -1,3 +1,6 @@
+import ThemeSwitcher from './ThemeSwitcher'
+import InstallAppButton from './InstallAppButton'
+import { printCurrentPage } from '../lib/print'
 import { useRef, useState } from 'react'
 import { LogOut, Settings, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -37,7 +40,7 @@ const ProfileMenu = () => {
         onClick={() => setOpen(value => !value)}
         className="flex min-w-0 items-center gap-3 rounded-xl text-left"
       >
-        <span className="hidden min-w-0 text-right sm:block">
+        <span className="hidden min-w-0 text-right xl:block">
           <span className="lumi-text block truncate text-sm font-semibold">{user.displayName || 'Владелец офиса'}</span>
           <span className="lumi-muted block max-w-44 truncate text-xs">{user.email}</span>
         </span>
@@ -56,6 +59,7 @@ const ProfileMenu = () => {
           </div>
         </div>
         <button type="button" onClick={openAccount} className="lumi-nav-item mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium"><Settings className="h-5 w-5" />Профиль и настройки</button>
+<div className="lumi-border mt-2 flex flex-wrap items-center gap-2 border-t px-3 py-3"><ThemeSwitcher /><InstallAppButton compact /><button type="button" onClick={() => { setOpen(false); void printCurrentPage() }} className="lumi-control rounded-lg px-3 py-2 text-sm">Сохранить PDF</button></div>
         <button type="button" disabled={loggingOut} onClick={() => void handleLogout()} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"><LogOut className="h-5 w-5" />{loggingOut ? 'Выходим…' : 'Выйти из аккаунта'}</button>
       </AnchoredPopover>
     </div>

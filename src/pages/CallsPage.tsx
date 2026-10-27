@@ -1,3 +1,7 @@
+import ListFilters, { filterOptions } from '../components/ListFilters'
+import { filterCalls } from '../lib/listFiltering'
+import QuickCallForm from '../components/QuickCallForm'
+import { localDate } from '../lib/contactPresentation'
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, Download, ExternalLink, Eye, Pencil, Phone, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -17,7 +21,7 @@ const CALL_TYPES: Array<{ value: CallType; label: string }> = [
 const initialForm = (): CallMetadata & { date: string; time: string; source: string; meeting_outcome: string; comments: string } => ({
   call_type: 'cold', status: 'Состоялся', source: 'Авито', contact_method: 'Телефон', contact_name: '', phone: '', address: '',
   property_type: 'Квартира', demand: '', unsuitable: '', property_url: '', area: '', floor: '', price: '',
-  date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5), contacted_at: '', next_contact_at: '',
+  date: localDate(), time: new Date().toTimeString().slice(0, 5), contacted_at: '', next_contact_at: '',
   meeting_at: '', meeting_outcome: '', comments: '', second_touch_at: '', second_comment: '',
 })
 
@@ -61,11 +65,13 @@ const displayDateTime = (value: string | null | undefined) => {
 const CallsPage = () => {
   const { user } = useAuth()
   const { data: calls = [], isPending: loading, error: loadError, refetch, saveCall, removeCall, mutationPending: saving } = useCallActivities(user?.id)
+  const [quickOpen, setQuickOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedCall, setSelectedCall] = useState<WorkCall | null>(null)
   const [activeType, setActiveType] = useState<CallType | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [form, setForm] = useState(initialForm)
   const [error, setError] = useState('')
   const draftKey = user ? `lumicrm-call-draft:${user.id}` : ''
@@ -79,12 +85,9 @@ const CallsPage = () => {
     }
   }, [draftKey, editingId, form, isModalOpen])
 
-  const filtered = useMemo(() => calls.filter(call => {
-    const metadata = call.metadata || {}
-    if (activeType !== 'all' && metadata.call_type !== activeType) return false
-    const haystack = [call.title, metadata.contact_name, metadata.phone, metadata.address, call.notes].join(' ').toLowerCase()
-    return haystack.includes(search.trim().toLowerCase())
-  }), [activeType, calls, search])
+  const filtered = useMemo(() => filterCalls(calls, filters, search, activeType), [activeType, calls, search, filters])
+  const invalidRange = Boolean(filters.from && filters.to && filters.from > filters.to || filters.timeFrom && filters.timeTo && filters.timeFrom > filters.timeTo)
+  const resetFilters = () => { setFilters({}); setSearch(''); setActiveType('all') }
 
   const setField = (key: keyof CallForm, value: string) => setForm(current => ({ ...current, [key]: value }))
 
@@ -123,7 +126,7 @@ const CallsPage = () => {
     setError('')
     const occurredAt = new Date(`${form.date}T${form.time || '12:00'}`).toISOString()
     const metadata: CallMetadata = {
-      call_type: form.call_type, status: form.status, contact_method: form.contact_method, contact_name: form.contact_name,
+      client_id: form.client_id, call_type: form.call_type, status: form.status, contact_method: form.contact_method, contact_name: form.contact_name,
       phone: form.phone, address: form.address, property_type: form.property_type, demand: form.demand,
       unsuitable: form.unsuitable, property_url: form.property_url, area: form.area, floor: form.floor, price: form.price,
       contacted_at: form.contacted_at, next_contact_at: form.next_contact_at, meeting_at: form.meeting_at,
@@ -171,7 +174,7 @@ const CallsPage = () => {
     <div className="min-w-0 space-y-6 pb-10">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="lumi-text text-3xl font-bold">Звонки</h1><p className="lumi-muted mt-1">Журнал выполненной работы, отдельно от календаря.</p></div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><button type="button" onClick={() => void printCurrentPage()} className="lumi-control flex items-center justify-center gap-2 rounded-xl px-4 py-3"><Download className="h-4 w-4" />PDF</button><button type="button" onClick={openCreate} className="lumi-gradient-button flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"><Plus className="h-5 w-5" />Записать звонок</button></div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><button type="button" onClick={() => void printCurrentPage()} className="lumi-control flex items-center justify-center gap-2 rounded-xl px-4 py-3"><Download className="h-4 w-4" />PDF</button><button type="button" onClick={() => setQuickOpen(true)} className="lumi-gradient-button flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"><Plus className="h-5 w-5" />Записать звонок</button><button type="button" onClick={openCreate} className="lumi-control rounded-xl px-4 py-3 text-sm">Подробная запись</button></div>
       </div>
 
       <div className="lumi-panel flex min-w-0 flex-col gap-3 rounded-2xl border p-4 lg:flex-row lg:items-center">
@@ -182,9 +185,19 @@ const CallsPage = () => {
         <label className="relative min-w-0 flex-1 lg:ml-auto lg:max-w-sm"><Search className="lumi-muted absolute left-3 top-2.5 h-5 w-5" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Имя, телефон или адрес" className="lumi-control w-full rounded-xl py-2.5 pl-10 pr-4 outline-none" /></label>
       </div>
 
+      <ListFilters defaultSort="date" sortOptions={[{ value: 'date', label: 'Дата звонка' }, { value: 'name', label: 'Имя' }, { value: 'result', label: 'Результат' }, { value: 'source', label: 'Источник' }]} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={resetFilters} count={filtered.length} total={calls.length} fields={[
+        { key: 'from', label: 'Дата с', type: 'date' }, { key: 'to', label: 'Дата по', type: 'date' },
+        { key: 'timeFrom', label: 'Время суток с', type: 'time' }, { key: 'timeTo', label: 'Время суток до', type: 'time' },
+        { key: 'result', label: 'Результат', options: filterOptions(calls.map(call => call.metadata?.status || call.outcome)) },
+        { key: 'source', label: 'Источник', options: filterOptions(calls.map(call => call.source)) },
+      ]}>
+        <div className="flex flex-wrap gap-2">{[0, 7, 30].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const start = new Date(); start.setDate(start.getDate() - Math.max(0, days - 1)); setFilters(current => ({ ...current, from: localDate(start), to: localDate() })) }}>{days === 0 ? 'Сегодня' : days === 7 ? '7 дней' : '30 дней'}</button>)}</div>
+        {invalidRange && <p role="alert" className="text-sm text-amber-400">Начало периода должно быть не позже окончания.</p>}
+      </ListFilters>
+
       {(error || loadError) && <div className="flex flex-col gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 sm:flex-row sm:items-center sm:justify-between"><span>{error || 'Не удалось обновить журнал из облака. Показана копия с устройства.'}</span>{loadError && <button type="button" onClick={() => void refetch()} className="lumi-control inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Повторить</button>}</div>}
       {loading ? <p className="lumi-muted py-12 text-center">Загружаем журнал…</p> : filtered.length === 0 ? (
-        <div className="lumi-panel lumi-muted flex flex-col items-center rounded-2xl border py-16 text-center"><Phone className="mb-3 h-12 w-12" /><p className="lumi-text font-semibold">Записей пока нет</p><p className="mt-1 text-sm">После звонка внесите результат — он попадёт в аналитику и план.</p></div>
+        <div className="lumi-panel lumi-muted flex flex-col items-center rounded-2xl border py-16 text-center"><Phone className="mb-3 h-12 w-12" /><p className="lumi-text font-semibold">{calls.length ? 'Ничего не найдено' : 'Записей пока нет'}</p><p className="mt-1 text-sm">{calls.length ? 'Измените условия или нажмите «Сбросить всё».' : 'После звонка внесите результат.'}</p></div>
       ) : (
         <div data-print-list className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {filtered.map(call => {
@@ -193,13 +206,14 @@ const CallsPage = () => {
             const propertyUrl = safeExternalUrl(meta.property_url)
             return <article data-print-item key={call.id} className="lumi-panel lumi-content-auto min-w-0 rounded-2xl border p-5">
               <div className="flex items-start gap-3"><div className="lumi-accent-soft rounded-xl p-2.5"><Phone className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="lumi-accent-text text-xs font-semibold uppercase">{typeLabel}</p><h2 className="lumi-text mt-1 truncate text-lg font-semibold">{meta.contact_name || call.title}</h2><p className="lumi-muted mt-1 truncate text-sm">{meta.phone || 'Телефон не указан'}</p></div><button type="button" onClick={() => void remove(call.id)} className="rounded-lg bg-red-500/10 p-2 text-red-500" title="Удалить"><Trash2 className="h-4 w-4" /></button></div>
-              <div className="lumi-border mt-4 grid gap-2 border-t pt-4 text-sm"><p className="lumi-muted flex items-center gap-2"><Calendar className="h-4 w-4" />{call.occurred_at ? new Date(call.occurred_at).toLocaleString('ru-RU') : 'Дата не указана'}</p>{meta.address && <p className="lumi-muted truncate">{meta.address}</p>}{meta.price && <p className="lumi-text font-medium">{Number(meta.price).toLocaleString('ru-RU')} ₽</p>}{call.outcome && <p className="lumi-muted">Итог встречи: {call.outcome}</p>}{call.notes && <p className="lumi-muted line-clamp-3">{call.notes}</p>}{propertyUrl && <a href={propertyUrl} target="_blank" rel="noreferrer" className="lumi-accent-text inline-flex items-center gap-1">Открыть объявление <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
+              <div className="lumi-border mt-4 grid gap-2 border-t pt-4 text-sm"><p className="lumi-muted flex items-center gap-2"><Calendar className="h-4 w-4" />{call.occurred_at ? new Date(call.occurred_at).toLocaleString('ru-RU') : 'Дата не указана'}</p>{meta.address && <p className="lumi-muted truncate">{meta.address}</p>}{meta.price && <p className="lumi-text font-medium">{Number(meta.price).toLocaleString('ru-RU')} ₽</p>}{call.outcome && <p className="lumi-muted">Результат: {call.outcome}</p>}{call.notes && <p className="lumi-muted line-clamp-3">{call.notes}</p>}{propertyUrl && <a href={propertyUrl} target="_blank" rel="noreferrer" className="lumi-accent-text inline-flex items-center gap-1">Открыть объявление <ExternalLink className="h-3.5 w-3.5" /></a>}</div>
               <div data-print-hidden className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setSelectedCall(call)} className="lumi-control inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm"><Eye className="h-4 w-4" />Подробнее</button><button type="button" onClick={() => openEdit(call)} className="lumi-control inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm"><Pencil className="h-4 w-4" />Изменить</button></div>
             </article>
           })}
         </div>
       )}
 
+      {quickOpen && <QuickCallForm onClose={() => setQuickOpen(false)} />}
       <Modal isOpen={Boolean(selectedCall)} onClose={() => setSelectedCall(null)} title="Карточка звонка">
         {selectedCall && (() => {
           const metadata = selectedCall.metadata || {}

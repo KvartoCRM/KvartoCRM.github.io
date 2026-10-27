@@ -405,7 +405,7 @@ const Dashboard = ({ children }: DashboardProps) => {
       </aside>
 
       <main className={`flex min-w-0 flex-1 flex-col overflow-hidden ${user?.preferences.navigationPosition === 'right' ? 'order-1' : 'order-2'}`}>
-        <header className="lumi-header relative z-[60] flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 backdrop-blur md:gap-3 md:px-8 md:py-4 2xl:flex-nowrap">
+        <header className="lumi-header relative z-[60] flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 backdrop-blur md:gap-3 md:px-6 md:py-3 md:flex-nowrap">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
@@ -415,13 +415,13 @@ const Dashboard = ({ children }: DashboardProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="order-3 w-full min-w-0 md:order-none md:max-w-md 2xl:flex-1"><GlobalSearch /></div>
+          <div className="order-3 w-full min-w-0 md:order-none md:max-w-sm md:flex-1"><GlobalSearch /></div>
           <div className="order-2 ml-auto flex min-w-0 shrink-0 items-center gap-1.5 md:order-none md:gap-2 xl:gap-3">
             <OfflineSyncStatus />
             <WorkspaceRefreshButton />
-            <InstallAppButton compact />
-            <button type="button" onClick={() => void printCurrentPage()} className="lumi-control hidden rounded-xl p-2.5 sm:inline-flex" title="Сохранить страницу как PDF"><FileDown className="h-5 w-5" /></button>
-            <span className="hidden sm:block"><ThemeSwitcher /></span>
+            <span className="hidden 2xl:block"><InstallAppButton compact /></span>
+            <button type="button" onClick={() => void printCurrentPage()} className="lumi-control hidden rounded-xl p-2.5 2xl:inline-flex" title="Сохранить страницу как PDF"><FileDown className="h-5 w-5" /></button>
+            <span className="hidden 2xl:block"><ThemeSwitcher /></span>
             <NotificationCenter />
             <ProfileMenu />
           </div>

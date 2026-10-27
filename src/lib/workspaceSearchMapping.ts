@@ -32,7 +32,7 @@ export const buildWorkspaceSearchResults = (collections: WorkspaceSearchRow[][])
         label: [client.last_name, client.first_name, client.middle_name].filter(Boolean).join(' ') || 'Без имени',
         subtitle: String(client.phone || client.email || 'Контакт'),
         group: isBuyer ? (isTenant ? 'Арендаторы' : 'Покупатели') : (isLandlord ? 'Арендодатели' : 'Собственники'),
-        route: `${isBuyer ? (isTenant ? '/tenants' : '/buyers') : (isLandlord ? '/landlords' : '/owners')}?client=${String(client.id)}`,
+        route: `/contacts?client=${String(client.id)}`,
         kind: 'client' as const,
       }
     }),

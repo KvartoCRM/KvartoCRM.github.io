@@ -275,7 +275,7 @@ const SettingsPage = () => {
             <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
               Записи из копии будут добавлены или обновлены. Данные, созданные после этой копии, не удаляются. Служебная очередь уведомлений пересоздаётся автоматически.
             </div>
-            {selectedBackup.summary.sourceUserId !== user.id && <p className="lumi-muted mt-3 text-sm">Копия создана в другом аккаунте. Все импортированные записи будут безопасно привязаны к текущему аккаунту.</p>}
+            {selectedBackup.summary.sourceUserId !== user.id && <p className="lumi-muted mt-3 text-sm">Копия создана в другом аккаунте. Записи получат новые идентификаторы и сохранят связи. Профиль этого аккаунта не изменится. Публичные ссылки из копии будут отключены.</p>}
             {selectedBackup.summary.warnings.length > 0 && <p className="mt-3 text-sm text-amber-300">В исходной копии предупреждений: {selectedBackup.summary.warnings.length}.</p>}
             <button type="button" disabled={restoringBackup} onClick={() => void restoreBackup()} className="lumi-gradient-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold disabled:opacity-60 sm:w-auto">
               <RefreshCw className={`h-4 w-4 ${restoringBackup ? 'animate-spin' : ''}`} />{restoringBackup ? restoreProgress || 'Восстанавливаем…' : 'Восстановить данные'}

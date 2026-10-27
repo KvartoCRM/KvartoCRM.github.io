@@ -1,3 +1,6 @@
+import ListFilters from '../components/ListFilters'
+import { matchesText, inDateRange, sortRecords } from '../lib/listFiltering'
+import { contactName } from '../lib/contactPresentation'
 import { useMemo, useState } from 'react'
 import { BriefcaseBusiness, Building2, CircleDollarSign, Edit, FileText, ListChecks, Plus, Trash2, TrendingUp, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -45,7 +48,7 @@ const emptyForm: DealFormData = {
 }
 
 const clientName = (client?: DealClient) => client
-  ? [client.lastName, client.firstName].filter(Boolean).join(' ') || client.phone || 'Без имени'
+  ? contactName(client)
   : 'Не выбран'
 
 const DealsPage = () => {
@@ -59,6 +62,7 @@ const DealsPage = () => {
   const loading = dealsQuery.isLoading || propertyQuery.isLoading || contactsQuery.isLoading
   const loadError = dealsQuery.error || propertyQuery.error || contactsQuery.error
   const [actionError, setActionError] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
   const [formData, setFormData] = useState<DealFormData>(emptyForm)
@@ -184,6 +188,13 @@ const DealsPage = () => {
     completed: 'Завершена',
     lost: 'Потеряна',
   }
+  const filteredDeals = sortRecords(deals.filter(deal => {
+    const property = properties.find(item => item.id === deal.propertyId)
+    const ids = [...participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId), ...participantIdsWithLegacyFallback(deal.ownerIds, deal.ownerId || property?.ownerId)]
+    return matchesText(filters.query || '', [property?.address, deal.notes, ...clients.filter(client => ids.includes(client.id)).flatMap(client => [clientName(client), client.phone])])
+      && (!filters.status || deal.status === filters.status) && (!filters.stage || (deal.stage || 'preparation') === filters.stage)
+      && inDateRange(deal.createdAt, filters.from, filters.to)
+  }), deal => filters.sort === 'price' ? deal.price : filters.sort === 'updated' ? Date.parse(deal.updatedAt) : filters.sort === 'status' ? statusLabel[deal.status] : Date.parse(deal.createdAt), filters.direction)
   const closedDeals = deals.filter(deal => deal.status === 'closed').length
   const lostDeals = deals.filter(deal => deal.status === 'cancelled' || deal.stage === 'lost').length
   const conversionBase = closedDeals + lostDeals
@@ -236,6 +247,12 @@ const DealsPage = () => {
         </button>
       </div>
 
+      <ListFilters values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredDeals.length} total={deals.length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'price',label:'Цена'},{value:'status',label:'Статус'}]} fields={[
+        {key:'query',label:'Адрес, имя, телефон или заметка'},
+        {key:'status',label:'Статус',options:Object.entries(statusLabel).map(([value,label])=>({value,label}))},
+        {key:'stage',label:'Этап',options:Object.entries(stageLabel).map(([value,label])=>({value,label}))},
+        {key:'from',label:'Создана с',type:'date'},{key:'to',label:'Создана по',type:'date'},
+      ]} />
       {(actionError || loadError) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-400"><span>{actionError || (loadError instanceof Error ? loadError.message : 'Не удалось загрузить сделки')}</span>{loadError && <button type="button" onClick={() => void Promise.all([dealsQuery.refetch(), propertyQuery.refetch(), contactsQuery.refetch()])} className="font-semibold underline">Повторить</button>}</div>}
       {!loading && deals.length > 0 && (
         <>
@@ -246,22 +263,22 @@ const DealsPage = () => {
             <div className="lumi-panel rounded-2xl border p-4"><CircleDollarSign className="lumi-accent-text h-5 w-5" /><p className="lumi-muted mt-3 text-xs">Прогноз чистого дохода</p><p className="lumi-text mt-1 text-xl font-bold">{formatMoney(expectedAgentIncome)}</p></div>
           </div>
           <section className="lumi-panel rounded-2xl border p-5">
-            <h2 className="lumi-text font-semibold">Воронка сделок</h2>
+            <h2 className="lumi-text font-semibold">Воронка сделок · вся база</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{stageCounts.map(item => <div key={item.stage} className="lumi-panel-muted rounded-xl border p-3"><div className="flex items-center justify-between gap-3 text-sm"><span className="lumi-muted-strong">{item.label}</span><strong className="lumi-text">{item.count}</strong></div><div className="lumi-control mt-2 h-1.5 overflow-hidden rounded-full"><div className="h-full rounded-full bg-[var(--lumi-accent)]" style={{ width: `${item.count / maxStageCount * 100}%` }} /></div></div>)}</div>
           </section>
         </>
       )}
       {loading ? (
         <div className="lumi-muted py-20 text-center">Загружаем сделки…</div>
-      ) : deals.length === 0 ? (
+      ) : filteredDeals.length === 0 ? (
         <div className="lumi-panel lumi-muted flex flex-col items-center justify-center rounded-2xl border py-20 text-center">
           <FileText className="mb-4 h-16 w-16" />
-          <p className="lumi-text text-lg font-medium">Сделок пока нет</p>
-          <p className="mt-2 text-sm">Создайте сделку и свяжите объект с клиентами</p>
+          <p className="lumi-text text-lg font-medium">{deals.length ? 'Ничего не найдено' : 'Сделок пока нет'}</p>
+          <p className="mt-2 text-sm">Измените фильтры или создайте сделку</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          {deals.map((deal, index) => {
+          {filteredDeals.map((deal, index) => {
             const property = properties.find(item => item.id === deal.propertyId)
             const dealBuyers = participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId).map(id => buyers.find(item => item.id === id)).filter((client): client is DealClient => Boolean(client))
             const dealOwners = participantIdsWithLegacyFallback(deal.ownerIds, deal.ownerId || property?.ownerId).map(id => owners.find(item => item.id === id)).filter((client): client is DealClient => Boolean(client))

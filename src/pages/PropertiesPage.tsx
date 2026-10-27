@@ -1,3 +1,5 @@
+import ListFilters, { filterOptions } from '../components/ListFilters'
+import { inNumberRange, sortRecords, matchesText } from '../lib/listFiltering'
 import { useState } from 'react'
 import { Archive, Plus, Edit, Trash2, Search, Star, Eye, Building2, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -13,16 +15,20 @@ const PropertiesPage = () => {
   const properties = data?.properties || []
   const clients = data?.clients || []
   const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProperty, setEditingProperty] = useState<Property | null>(null)
   const [actionError, setActionError] = useState('')
   const [workStream, setWorkStream] = useState<'active' | 'cold'>('active')
   const loadError = queryError instanceof Error ? queryError.message : queryError ? 'Не удалось загрузить объекты из облака.' : ''
 
-  const filteredProperties = properties.filter(prop =>
+  const filteredProperties = sortRecords(properties.filter(prop =>
     (prop.workStream || 'active') === workStream
-    && (prop.address || '').toLowerCase().includes((searchQuery || '').toLowerCase())
-  )
+    && matchesText(searchQuery, [prop.address])
+    && (!filters.type || prop.propertyType === filters.type) && (!filters.status || prop.status === filters.status)
+    && (!filters.listing || (prop.listingType || 'sale') === filters.listing) && (!filters.rooms || String(prop.rooms) === filters.rooms)
+    && (!filters.favorite || prop.isFavorite) && inNumberRange(prop.price, filters.min, filters.max)
+  ), prop => filters.sort === 'address' ? prop.address : filters.sort === 'price' ? prop.price : filters.sort === 'area' ? prop.area : filters.sort === 'updated' ? Date.parse(prop.updatedAt) : Date.parse(prop.createdAt), filters.direction)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -95,6 +101,14 @@ const PropertiesPage = () => {
         <button type="button" onClick={() => setWorkStream('cold')} className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition ${workStream === 'cold' ? 'lumi-panel lumi-text shadow-sm' : 'lumi-muted'}`}>Холодная база · {properties.filter(item => item.workStream === 'cold').length}</button>
       </div>
 
+      <ListFilters values={filters} onChange={(key, value) => setFilters(current => ({...current,[key]:value}))} onReset={() => {setFilters({});setSearchQuery('');setWorkStream('active')}} count={filteredProperties.length} total={properties.filter(item => (item.workStream || 'active') === workStream).length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'address',label:'Адрес'},{value:'price',label:'Цена'},{value:'area',label:'Площадь'}]} fields={[
+        {key:'type',label:'Тип недвижимости',options:filterOptions(properties.map(item=>item.propertyType))},
+        {key:'listing',label:'Операция',options:[{value:'sale',label:'Продажа'},{value:'rent',label:'Аренда'}]},
+        {key:'status',label:'Статус',options:filterOptions(properties.map(item=>item.status)).map(option=>({...option,label:getStatusText(option.value)}))},
+        {key:'rooms',label:'Комнат',options:filterOptions(properties.map(item=>item.rooms == null ? undefined : String(item.rooms)))},
+        {key:'min',label:'Цена от, ₽',type:'number'},{key:'max',label:'Цена до, ₽',type:'number'},
+        {key:'favorite',label:'Избранное',options:[{value:'yes',label:'Только избранные'}]},
+      ]} />
       {(actionError || loadError) && <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-red-800/50 bg-red-950/25 px-4 py-3 text-sm text-red-300 sm:flex-row sm:items-center"><span>{actionError || `Не удалось загрузить объекты: ${loadError}`}</span>{loadError && <button type="button" onClick={() => void refetch()} className="lumi-control inline-flex items-center gap-2 rounded-lg px-3 py-2 font-semibold"><RefreshCw className="h-4 w-4" />Повторить</button>}</div>}
 
       {loading && properties.length === 0 ? (
@@ -103,7 +117,7 @@ const PropertiesPage = () => {
         <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
           <Search className="w-16 h-16 mb-4 text-gray-300" />
           <p className="text-lg font-medium">Нет объектов</p>
-          <p className="text-sm mt-2">Добавьте первый объект недвижимости</p>
+          <p className="text-sm mt-2">Измените фильтры или добавьте объект недвижимости</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

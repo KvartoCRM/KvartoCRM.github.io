@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -17,8 +17,6 @@ const PropertiesPage = lazy(routeLoaders.properties)
 const PropertyDetailPage = lazy(routeLoaders.propertyDetail)
 const ContactsHubPage = lazy(routeLoaders.contacts)
 const WorkHubPage = lazy(routeLoaders.work)
-const OwnersPage = lazy(routeLoaders.owners)
-const BuyersPage = lazy(routeLoaders.buyers)
 const CalendarPage = lazy(routeLoaders.calendar)
 const TasksPage = lazy(routeLoaders.tasks)
 const DealsPage = lazy(routeLoaders.deals)
@@ -43,6 +41,13 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+const LegacyContactRoute = ({ role }: { role: string }) => {
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  params.set('role', role)
+  return <Navigate to={`/contacts?${params}`} replace />
 }
 
 function App() {
@@ -71,10 +76,10 @@ function App() {
                       <Route path="/properties/:id" element={<PropertyDetailPage />} />
                       <Route path="/contacts" element={<ContactsHubPage />} />
                       <Route path="/work" element={<WorkHubPage />} />
-                      <Route path="/owners" element={<OwnersPage />} />
-                      <Route path="/landlords" element={<OwnersPage mode="rent" />} />
-                      <Route path="/buyers" element={<BuyersPage />} />
-                      <Route path="/tenants" element={<BuyersPage mode="rent" />} />
+                      <Route path="/owners" element={<LegacyContactRoute role="seller" />} />
+                      <Route path="/landlords" element={<LegacyContactRoute role="landlord" />} />
+                      <Route path="/buyers" element={<LegacyContactRoute role="buyer" />} />
+                      <Route path="/tenants" element={<LegacyContactRoute role="tenant" />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/calls" element={<CallsPage />} />
                       <Route path="/plan" element={<MonthlyPlanPage />} />

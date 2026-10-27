@@ -1,3 +1,4 @@
+import { prepareRestoreIdentity, restoreStoragePath } from './workspaceRestoreIdentity'
 import { checkCloudConnection, supabase } from './supabase'
 import { getCachedCrmFileBlob } from './offlineFiles'
 import type { CrmFileRecord } from './files'
@@ -129,13 +130,6 @@ const chunks = <T,>(items: T[], size: number) => {
 
 const withCurrentUser = (row: BackupRow, userId: string) => ({ ...row, user_id: userId })
 
-const remapStoragePath = (path: string, sourceUserId: string, userId: string) => {
-  const parts = path.split('/').filter(Boolean)
-  if (!parts.length) return `${userId}/restored-file`
-  if (parts[0] === sourceUserId || parts[0] === userId) parts[0] = userId
-  else parts.unshift(userId)
-  return parts.join('/')
-}
 
 const fetchBackupFile = async (url: string) => {
   const controller = new AbortController()
@@ -153,6 +147,7 @@ const restoreFileRecords = async (
   backup: WorkspaceBackup,
   userId: string,
   onProgress?: (progress: WorkspaceRestoreProgress) => void,
+  originalFiles: BackupRow[] = [],
 ) => {
   const sourceRows = backup.tables.crm_files ?? []
   const restoredRows: BackupRow[] = []
@@ -172,10 +167,10 @@ const restoreFileRecords = async (
       return
     }
 
-    const storagePath = remapStoragePath(sourcePath, backup.sourceUserId, userId)
+    const storagePath = restoreStoragePath(sourcePath, backup.sourceUserId, userId)
     const restoredRow = { ...withCurrentUser(row, userId), storage_path: storagePath }
     const signedUrl = backup.fileUrls[id]
-    const sourceFile = { ...row, user_id: backup.sourceUserId } as CrmFileRecord
+    const sourceFile = { ...(originalFiles[index] || row), user_id: backup.sourceUserId } as CrmFileRecord
     let blob = await getCachedCrmFileBlob(sourceFile)
     if (!signedUrl && !blob) {
       if (backup.sourceUserId === userId) restoredRows.push(restoredRow)
@@ -227,7 +222,8 @@ export const restoreWorkspaceBackup = async (
   userId: string,
   onProgress?: (progress: WorkspaceRestoreProgress) => void,
 ): Promise<WorkspaceRestoreResult> => {
-  const backup = parseWorkspaceBackup(input)
+  const original = parseWorkspaceBackup(input)
+  const backup = await prepareRestoreIdentity(original, userId)
   const online = await checkCloudConnection()
   if (!online) throw new Error('Для восстановления нужна связь с сервисом. Подключитесь к интернету и повторите попытку.')
 
@@ -254,7 +250,7 @@ export const restoreWorkspaceBackup = async (
     onProgress?.({ phase: 'records', label: `Восстанавливаем ${table}`, completed: completedTables, total: totalRecordTables })
   }
 
-  const files = await restoreFileRecords(backup, userId, onProgress)
+  const files = await restoreFileRecords(backup, userId, onProgress, original.tables.crm_files)
   importedRows += files.restoredRows
   onProgress?.({ phase: 'complete', label: 'Восстановление завершено', completed: 1, total: 1 })
 

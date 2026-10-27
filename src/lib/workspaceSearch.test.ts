@@ -17,6 +17,6 @@ test('maps workspace search rows to the correct routes', () => {
 
   assert.deepEqual(results.map(result => result.kind), ['property', 'client', 'task', 'event', 'deal'])
   assert.equal(results[0].route, '/properties/property-1')
-  assert.equal(results[1].route, '/tenants?client=client-1')
+  assert.equal(results[1].route, '/contacts?client=client-1')
   assert.equal(results[1].group, 'Арендаторы')
 })

@@ -154,8 +154,8 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
             <label className="text-sm font-medium text-gray-700">Имя *
               <input required value={formData.firstName} onChange={event => update('firstName', event.target.value)} className={`${inputClass} mt-2`} placeholder="Введите имя" />
             </label>
-            <label className="text-sm font-medium text-gray-700">Фамилия *
-              <input required value={formData.lastName} onChange={event => update('lastName', event.target.value)} className={`${inputClass} mt-2`} placeholder="Введите фамилию" />
+            <label className="text-sm font-medium text-gray-700">Фамилия (необязательно)
+              <input  value={formData.lastName} onChange={event => update('lastName', event.target.value)} className={`${inputClass} mt-2`} placeholder="Введите фамилию" />
             </label>
             <label className="text-sm font-medium text-gray-700">Отчество
               <input value={formData.middleName} onChange={event => update('middleName', event.target.value)} className={`${inputClass} mt-2`} placeholder="Введите отчество" />
