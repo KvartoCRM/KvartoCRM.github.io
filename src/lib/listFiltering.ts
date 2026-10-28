@@ -1,3 +1,4 @@
+import type { Event } from '../types/index.ts'
 import { localDate } from './contactPresentation.ts'
 import type { WorkCall } from './callActivityMapping.ts'
 
@@ -45,3 +46,14 @@ export const filterCalls = (calls: WorkCall[], filters: Record<string, string>, 
   }
   return true
 }), call => filters.sort === 'name' ? call.metadata?.contact_name || call.title : filters.sort === 'result' ? call.metadata?.status || call.outcome : filters.sort === 'source' ? call.source : Date.parse(call.occurred_at || ''), filters.direction)
+
+export const filterMeetings = (meetings: Event[], filters: Record<string, string>) => sortRecords(meetings.filter(meeting => {
+  if (!matchesText(filters.query || '', [meeting.title, meeting.location, meeting.notes])) return false
+  if (!inDateRange(meeting.eventDate, filters.from, filters.to)) return false
+  if (filters.status && (meeting.isCompleted ? 'completed' : 'planned') !== filters.status) return false
+  if (filters.timeFrom || filters.timeTo) {
+    const time = meeting.eventTime?.slice(0, 5)
+    if (!time || filters.timeFrom && time < filters.timeFrom || filters.timeTo && time > filters.timeTo) return false
+  }
+  return true
+}), meeting => filters.sort === 'name' ? meeting.title : filters.sort === 'location' ? meeting.location : filters.sort === 'created' ? Date.parse(meeting.createdAt) : meeting.eventDate ? meeting.eventDate + 'T' + (meeting.eventTime || '00:00') : undefined, filters.direction || 'asc')

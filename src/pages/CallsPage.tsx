@@ -69,7 +69,6 @@ const CallsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedCall, setSelectedCall] = useState<WorkCall | null>(null)
-  const [activeType, setActiveType] = useState<CallType | 'all'>('all')
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [form, setForm] = useState(initialForm)
@@ -85,9 +84,9 @@ const CallsPage = () => {
     }
   }, [draftKey, editingId, form, isModalOpen])
 
-  const filtered = useMemo(() => filterCalls(calls, filters, search, activeType), [activeType, calls, search, filters])
+  const filtered = useMemo(() => filterCalls(calls, filters, search, filters.type || 'all'), [calls, search, filters])
   const invalidRange = Boolean(filters.from && filters.to && filters.from > filters.to || filters.timeFrom && filters.timeTo && filters.timeFrom > filters.timeTo)
-  const resetFilters = () => { setFilters({}); setSearch(''); setActiveType('all') }
+  const resetFilters = () => { setFilters({}); setSearch('') }
 
   const setField = (key: keyof CallForm, value: string) => setForm(current => ({ ...current, [key]: value }))
 
@@ -177,15 +176,8 @@ const CallsPage = () => {
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><button type="button" onClick={() => void printCurrentPage()} className="lumi-control flex items-center justify-center gap-2 rounded-xl px-4 py-3"><Download className="h-4 w-4" />PDF</button><button type="button" onClick={() => setQuickOpen(true)} className="lumi-gradient-button flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"><Plus className="h-5 w-5" />Записать звонок</button><button type="button" onClick={openCreate} className="lumi-control rounded-xl px-4 py-3 text-sm">Подробная запись</button></div>
       </div>
 
-      <div className="lumi-panel flex min-w-0 flex-col gap-3 rounded-2xl border p-4 lg:flex-row lg:items-center">
-        <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 lg:pb-0">
-          <button type="button" onClick={() => setActiveType('all')} className={`shrink-0 rounded-xl px-4 py-2 text-sm ${activeType === 'all' ? 'lumi-accent-bg' : 'lumi-control'}`}>Все · {calls.length}</button>
-          {CALL_TYPES.map(type => <button type="button" key={type.value} onClick={() => setActiveType(type.value)} className={`shrink-0 rounded-xl px-4 py-2 text-sm ${activeType === type.value ? 'lumi-accent-bg' : 'lumi-control'}`}>{type.label} · {calls.filter(call => call.metadata?.call_type === type.value).length}</button>)}
-        </div>
-        <label className="relative min-w-0 flex-1 lg:ml-auto lg:max-w-sm"><Search className="lumi-muted absolute left-3 top-2.5 h-5 w-5" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Имя, телефон или адрес" className="lumi-control w-full rounded-xl py-2.5 pl-10 pr-4 outline-none" /></label>
-      </div>
-
-      <ListFilters defaultSort="date" sortOptions={[{ value: 'date', label: 'Дата звонка' }, { value: 'name', label: 'Имя' }, { value: 'result', label: 'Результат' }, { value: 'source', label: 'Источник' }]} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={resetFilters} count={filtered.length} total={calls.length} fields={[
+      <ListFilters search={<label className="relative min-w-[180px] flex-1 sm:max-w-sm"><Search className="lumi-muted absolute left-3 top-2.5 h-4 w-4" /><input aria-label="Поиск звонков" value={search} onChange={event => setSearch(event.target.value)} placeholder="Имя, телефон или адрес" className="lumi-control w-full rounded-lg py-2 pl-9 pr-3 text-sm outline-none" /></label>} defaultSort="date" sortOptions={[{ value: 'date', label: 'Дата звонка' }, { value: 'name', label: 'Имя' }, { value: 'result', label: 'Результат' }, { value: 'source', label: 'Источник' }]} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={resetFilters} count={filtered.length} total={calls.length} fields={[
+        { key: 'type', label: 'Тип звонка', options: CALL_TYPES },
         { key: 'from', label: 'Дата с', type: 'date' }, { key: 'to', label: 'Дата по', type: 'date' },
         { key: 'timeFrom', label: 'Время суток с', type: 'time' }, { key: 'timeTo', label: 'Время суток до', type: 'time' },
         { key: 'result', label: 'Результат', options: filterOptions(calls.map(call => call.metadata?.status || call.outcome)) },

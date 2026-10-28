@@ -1,6 +1,7 @@
+import type { Event } from '../types/index.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { filterCalls, inDateRange, inNumberRange, matchesText, sortRecords } from './listFiltering.ts'
+import { filterCalls, filterMeetings, inDateRange, inNumberRange, matchesText, sortRecords } from './listFiltering.ts'
 import type { WorkCall } from './callActivityMapping.ts'
 
 test('search matches Russian spelling, unordered words and formatted phones', () => {
@@ -38,4 +39,14 @@ test('call filters intersect date, local time, name, type, result and source', (
   assert.equal(filterCalls(calls,{...filters,timeFrom:'17:00'}).length,0)
   assert.equal(filterCalls(calls,{}).length,3)
   assert.deepEqual(filterCalls(calls,{sort:'name',direction:'desc'}).map(x=>x.id), ['3','1','2'])
+})
+
+test('meeting filters combine local dates, time, text and completion status', () => {
+  const base: Event = {id:'a',type:'meeting',title:'Показ квартиры',eventDate:'2026-10-28',eventTime:'10:30:00',location:'Центр',isCompleted:false,isFavorite:false,createdAt:'2026-10-20T10:00:00Z'}
+  const rows = [base,{...base,id:'b',eventDate:'2026-10-29',isCompleted:true},{...base,id:'c',eventTime:undefined}]
+  assert.deepEqual(filterMeetings(rows,{from:'2026-10-28',to:'2026-10-28',timeFrom:'10:30',timeTo:'10:30',query:'квартиры центр',status:'planned'}).map(x=>x.id),['a'])
+  assert.deepEqual(filterMeetings(rows,{status:'completed'}).map(x=>x.id),['b'])
+  assert.equal(filterMeetings(rows,{}).length,3)
+  assert.equal(filterMeetings(rows,{from:'2026-10-30',to:'2026-10-28'}).length,0)
+  assert.equal(filterMeetings(rows,{direction:'desc'})[0].id,'b')
 })

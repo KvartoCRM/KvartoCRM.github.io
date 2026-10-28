@@ -1,3 +1,6 @@
+import ListFilters from '../components/ListFilters'
+import { filterMeetings } from '../lib/listFiltering'
+import { localDate } from '../lib/contactPresentation'
 import { useState } from 'react'
 import { Plus, Edit, Trash2, Calendar, Clock, MapPin, RefreshCw } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -13,6 +16,8 @@ const MeetingsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMeeting, setEditingMeeting] = useState<Event | null>(null)
   const [actionError, setActionError] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const visibleMeetings = filterMeetings(meetings, filters)
 
   const deleteMeeting = async (id: string) => {
     if (!user) return
@@ -63,10 +68,20 @@ const MeetingsPage = () => {
         </button>
       </div>
 
+      <ListFilters values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => setFilters({})} count={visibleMeetings.length} total={meetings.length} defaultSort="date" defaultDirection="asc" sortOptions={[{value:'date',label:'Дата и время'},{value:'name',label:'Название'},{value:'location',label:'Место'},{value:'created',label:'Дата создания'}]} fields={[
+        {key:'query',label:'Название, место или заметка'},
+        {key:'status',label:'Статус',options:[{value:'planned',label:'Запланированные'},{value:'completed',label:'Завершённые'}]},
+        {key:'from',label:'Дата с',type:'date'},{key:'to',label:'Дата по',type:'date'},
+        {key:'timeFrom',label:'Время суток с',type:'time'},{key:'timeTo',label:'Время суток до',type:'time'},
+      ]}>
+        <div className="flex flex-wrap gap-2">{[0, 7].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const end = new Date(); end.setDate(end.getDate() + Math.max(0, days - 1)); setFilters(current => ({...current,from:localDate(),to:localDate(end)})) }}>{days ? 'Ближайшие 7 дней' : 'Сегодня'}</button>)}</div>
+        {(filters.from && filters.to && filters.from > filters.to || filters.timeFrom && filters.timeTo && filters.timeFrom > filters.timeTo) && <p role="alert" className="text-sm text-amber-400">Начало периода должно быть не позже окончания.</p>}
+      </ListFilters>
+
       {(actionError || loadError) && <div className="flex flex-col gap-3 rounded-xl border border-red-700/40 bg-red-950/20 px-4 py-3 text-sm text-red-300 sm:flex-row sm:items-center sm:justify-between"><span>{actionError || 'Не удалось обновить календарь из облака. Показана копия с устройства.'}</span>{loadError && <button type="button" onClick={() => void refetch()} className="lumi-control inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-semibold"><RefreshCw className="h-4 w-4" />Повторить</button>}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 flex-1 content-start">
-        {meetings.map((meeting, i) => {
+        {visibleMeetings.map((meeting, i) => {
         return (
           <motion.div
             key={meeting.id}
@@ -128,11 +143,11 @@ const MeetingsPage = () => {
         )
       })}
 
-        {meetings.length === 0 && (
+        {visibleMeetings.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
             <Calendar className="w-16 h-16 mb-4 text-gray-300" />
-            <p className="text-lg font-medium">Нет запланированных встреч</p>
-            <p className="text-sm mt-2">Создайте новую встречу</p>
+            <p className="text-lg font-medium">{meetings.length ? 'Ничего не найдено' : 'Нет запланированных встреч'}</p>
+            <p className="text-sm mt-2">{meetings.length ? 'Измените фильтры или сбросьте условия.' : 'Создайте новую встречу'}</p>
           </div>
         )}
       </div>
