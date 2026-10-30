@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MeetingsPage from './MeetingsPage'
-import CallsPage from './CallsPage'
+
 
 const CalendarPage = () => {
   const [activeTab, setActiveTab] = useState<'meetings' | 'calls'>('meetings')
@@ -25,10 +25,10 @@ const CalendarPage = () => {
             activeTab === 'calls' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-300'
           }`}
         >
-          Звонки
+          План звонков
         </button>
       </div>
-      {activeTab === 'meetings' ? <MeetingsPage /> : <CallsPage />}
+      {activeTab === 'meetings' ? <MeetingsPage key="meetings" /> : <MeetingsPage key="calls" eventType="call" />}
     </div>
   )
 }

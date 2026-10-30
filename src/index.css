@@ -4,6 +4,7 @@
 
 :root,
 [data-theme='lumi-light'] {
+  color-scheme: light;
   --lumi-bg: #f2f5fa;
   --lumi-sidebar: rgba(255, 255, 255, 0.92);
   --lumi-header: rgba(255, 255, 255, 0.84);
@@ -31,6 +32,7 @@
 }
 
 [data-theme='midnight'] {
+  color-scheme: dark;
   --lumi-bg: #070b14;
   --lumi-sidebar: rgba(13, 19, 32, 0.96);
   --lumi-header: rgba(13, 19, 32, 0.84);
@@ -57,6 +59,7 @@
 }
 
 [data-theme='aurora'] {
+  color-scheme: dark;
   --lumi-bg: #06110f;
   --lumi-sidebar: rgba(7, 25, 22, 0.94);
   --lumi-header: rgba(8, 27, 24, 0.82);
@@ -83,6 +86,7 @@
 }
 
 [data-theme='graphite'] {
+  color-scheme: dark;
   --lumi-bg: #0c0d0f;
   --lumi-sidebar: rgba(20, 21, 24, 0.96);
   --lumi-header: rgba(20, 21, 24, 0.88);
@@ -109,6 +113,7 @@
 }
 
 [data-theme='warm-sand'] {
+  color-scheme: light;
   --lumi-bg: #eee6da;
   --lumi-sidebar: rgba(252, 247, 239, 0.94);
   --lumi-header: rgba(252, 247, 239, 0.84);
@@ -207,7 +212,7 @@ body {
   background: rgb(var(--lumi-accent-rgb) / 0.28);
 }
 
-.lumi-shell {
+:is(.lumi-shell, .lumi-theme-scope) {
   background:
     radial-gradient(circle at 18% 18%, rgb(var(--lumi-accent-rgb) / 0.08), transparent 28rem),
     radial-gradient(circle at 76% -20%, var(--lumi-glow), transparent 34rem),
@@ -378,7 +383,7 @@ body {
   transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
 }
 
-.lumi-shell :where(button, a, [role='tab']) svg,
+:is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']) svg,
 .lumi-icon-reactive {
   transform-box: fill-box;
   transform-origin: center;
@@ -386,7 +391,7 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .lumi-shell :where(button, a, [role='tab']):hover svg {
+  :is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']):hover svg {
     transform: translateY(-1px) rotate(-4deg) scale(1.09);
     filter: drop-shadow(0 4px 7px rgb(var(--lumi-accent-rgb) / 0.24));
   }
@@ -397,7 +402,7 @@ body {
   }
 }
 
-.lumi-shell :where(button, a, [role='tab']):active svg {
+:is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']):active svg {
   transform: translateY(1px) rotate(0deg) scale(0.92);
 }
 
@@ -408,119 +413,119 @@ body {
 
 .lumi-gradient-button:active { transform: translateY(1px) scale(0.99); }
 
-.lumi-shell .from-blue-600.to-purple-600,
-.lumi-shell .from-blue-600.to-violet-600 {
+:is(.lumi-shell, .lumi-theme-scope) .from-blue-600.to-purple-600,
+:is(.lumi-shell, .lumi-theme-scope) .from-blue-600.to-violet-600 {
   --tw-gradient-from: var(--lumi-accent-solid) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(var(--lumi-accent-rgb) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--lumi-accent-2) var(--tw-gradient-to-position);
 }
 
-.lumi-shell .bg-blue-600 {
+:is(.lumi-shell, .lumi-theme-scope) .bg-blue-600 {
   background-color: var(--lumi-accent-solid);
   color: var(--lumi-on-accent);
 }
 
-.lumi-shell .text-blue-400,
-.lumi-shell .text-blue-500,
-.lumi-shell .text-blue-600,
-.lumi-shell .text-blue-700 {
+:is(.lumi-shell, .lumi-theme-scope) .text-blue-400,
+:is(.lumi-shell, .lumi-theme-scope) .text-blue-500,
+:is(.lumi-shell, .lumi-theme-scope) .text-blue-600,
+:is(.lumi-shell, .lumi-theme-scope) .text-blue-700 {
   color: var(--lumi-accent);
 }
 
 /*
  * Legacy components used Tailwind's fixed light/dark palette.  Keep those
  * components theme-aware while they are gradually moved to Lumi tokens.
- * The selectors are scoped to the application shell so status badges and
+ * The selectors include the application shell and portal panels so status badges and
  * destructive/action colours keep their own semantics.
  */
-.lumi-shell .bg-white,
-.lumi-shell .dark\:bg-gray-800 {
+:is(.lumi-shell, .lumi-theme-scope) .bg-white,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:bg-gray-800 {
   background-color: var(--lumi-panel) !important;
 }
 
-.lumi-shell .bg-gray-50,
-.lumi-shell .bg-gray-50\/70,
-.lumi-shell .dark\:bg-gray-700\/50 {
+:is(.lumi-shell, .lumi-theme-scope) .bg-gray-50,
+:is(.lumi-shell, .lumi-theme-scope) .bg-gray-50\/70,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:bg-gray-700\/50 {
   background-color: var(--lumi-panel-muted) !important;
 }
 
-.lumi-shell .bg-gray-100,
-.lumi-shell .bg-gray-200,
-.lumi-shell .dark\:bg-gray-700 {
+:is(.lumi-shell, .lumi-theme-scope) .bg-gray-100,
+:is(.lumi-shell, .lumi-theme-scope) .bg-gray-200,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:bg-gray-700 {
   background-color: var(--lumi-control) !important;
 }
 
-.lumi-shell .hover\:bg-gray-100:hover,
-.lumi-shell .hover\:bg-gray-200:hover,
-.lumi-shell .dark\:hover\:bg-gray-600:hover,
-.lumi-shell .dark\:hover\:bg-gray-700:hover {
+:is(.lumi-shell, .lumi-theme-scope) .hover\:bg-gray-100:hover,
+:is(.lumi-shell, .lumi-theme-scope) .hover\:bg-gray-200:hover,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:hover\:bg-gray-600:hover,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:hover\:bg-gray-700:hover {
   background-color: var(--lumi-control-hover) !important;
 }
 
-.lumi-shell .text-black,
-.lumi-shell .text-gray-900,
-.lumi-shell .dark\:text-white {
+:is(.lumi-shell, .lumi-theme-scope) .text-black,
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-900,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:text-white {
   color: var(--lumi-text) !important;
 }
 
-.lumi-shell .text-gray-800,
-.lumi-shell .text-gray-700,
-.lumi-shell .text-gray-600,
-.lumi-shell .dark\:text-gray-200,
-.lumi-shell .dark\:text-gray-300 {
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-800,
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-700,
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-600,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:text-gray-200,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:text-gray-300 {
   color: var(--lumi-muted-strong) !important;
 }
 
-.lumi-shell .text-gray-500,
-.lumi-shell .text-gray-400,
-.lumi-shell .dark\:text-gray-400 {
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-500,
+:is(.lumi-shell, .lumi-theme-scope) .text-gray-400,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:text-gray-400 {
   color: var(--lumi-muted) !important;
 }
 
-.lumi-shell .border-gray-50,
-.lumi-shell .border-gray-100,
-.lumi-shell .border-gray-200,
-.lumi-shell .border-gray-300,
-.lumi-shell .dark\:border-gray-600,
-.lumi-shell .dark\:border-gray-700 {
+:is(.lumi-shell, .lumi-theme-scope) .border-gray-50,
+:is(.lumi-shell, .lumi-theme-scope) .border-gray-100,
+:is(.lumi-shell, .lumi-theme-scope) .border-gray-200,
+:is(.lumi-shell, .lumi-theme-scope) .border-gray-300,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:border-gray-600,
+:is(.lumi-shell, .lumi-theme-scope) .dark\:border-gray-700 {
   border-color: var(--lumi-border) !important;
 }
 
-.lumi-shell input:not([type='checkbox']):not([type='radio']),
-.lumi-shell select,
-.lumi-shell textarea {
+:is(.lumi-shell, .lumi-theme-scope) input:not([type='checkbox']):not([type='radio']),
+:is(.lumi-shell, .lumi-theme-scope) select,
+:is(.lumi-shell, .lumi-theme-scope) textarea {
   border-color: var(--lumi-border);
-  background-color: var(--lumi-control);
-  color: var(--lumi-text);
+  background-color: var(--lumi-control) !important;
+  color: var(--lumi-text) !important;
 }
 
-.lumi-shell input::placeholder,
-.lumi-shell textarea::placeholder {
+:is(.lumi-shell, .lumi-theme-scope) input::placeholder,
+:is(.lumi-shell, .lumi-theme-scope) textarea::placeholder {
   color: var(--lumi-muted);
   opacity: 0.9;
 }
 
-.lumi-shell option {
+:is(.lumi-shell, .lumi-theme-scope) option {
   background: var(--lumi-panel);
   color: var(--lumi-text);
 }
 
 /* Android renders native select menus outside the web view. Explicit system
    colours keep every option readable even when a custom dark theme is active. */
-.lumi-shell select option {
+:is(.lumi-shell, .lumi-theme-scope) select option {
   background-color: var(--lumi-panel);
   color: var(--lumi-text);
 }
 
-.lumi-shell .recharts-default-tooltip,
-.lumi-shell .recharts-tooltip-wrapper .recharts-default-tooltip {
+:is(.lumi-shell, .lumi-theme-scope) .recharts-default-tooltip,
+:is(.lumi-shell, .lumi-theme-scope) .recharts-tooltip-wrapper .recharts-default-tooltip {
   border-color: var(--lumi-border) !important;
   background: var(--lumi-panel) !important;
   color: var(--lumi-text) !important;
 }
 
-.lumi-shell .recharts-tooltip-item,
-.lumi-shell .recharts-tooltip-label {
+:is(.lumi-shell, .lumi-theme-scope) .recharts-tooltip-item,
+:is(.lumi-shell, .lumi-theme-scope) .recharts-tooltip-label {
   color: var(--lumi-text) !important;
 }
 
@@ -536,13 +541,13 @@ body {
   .lumi-control,
   .lumi-gradient-button,
   .lumi-nav-item,
-  .lumi-shell :where(button, a, [role='tab']) svg,
+  :is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']) svg,
   .lumi-icon-reactive {
     transition: none !important;
   }
 
-  .lumi-shell :where(button, a, [role='tab']):hover svg,
-  .lumi-shell :where(button, a, [role='tab']):active svg,
+  :is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']):hover svg,
+  :is(.lumi-shell, .lumi-theme-scope) :where(button, a, [role='tab']):active svg,
   .lumi-showcase:hover .lumi-icon-reactive {
     transform: none !important;
     filter: none !important;
@@ -550,9 +555,9 @@ body {
 }
 
 @media (max-width: 640px) {
-  .lumi-shell h1 { font-size: 1.65rem; line-height: 1.2; }
-  .lumi-shell button, .lumi-shell input, .lumi-shell select, .lumi-shell textarea { max-width: 100%; }
-  .lumi-shell .recharts-wrapper, .lumi-shell .recharts-surface { max-width: 100% !important; }
+  :is(.lumi-shell, .lumi-theme-scope) h1 { font-size: 1.65rem; line-height: 1.2; }
+  :is(.lumi-shell, .lumi-theme-scope) button, :is(.lumi-shell, .lumi-theme-scope) input, :is(.lumi-shell, .lumi-theme-scope) select, :is(.lumi-shell, .lumi-theme-scope) textarea { max-width: 100%; }
+  :is(.lumi-shell, .lumi-theme-scope) .recharts-wrapper, :is(.lumi-shell, .lumi-theme-scope) .recharts-surface { max-width: 100% !important; }
 }
 
 @page {
@@ -563,10 +568,10 @@ body {
 @media print {
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .lumi-sidebar, .lumi-header, nav, button, [data-no-print], [data-print-hidden] { display: none !important; }
-  html, body, #root, .lumi-shell { width: auto !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; background: #fff !important; color: #111 !important; overflow: visible !important; }
-  .lumi-shell { display: block !important; padding: 0 !important; }
-  .lumi-shell > main, .lumi-shell main, .lumi-shell .overflow-y-auto, .lumi-shell .overflow-hidden { display: block !important; width: auto !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
-  .lumi-shell main > div { padding: 0 !important; }
+  html, body, #root, :is(.lumi-shell, .lumi-theme-scope) { width: auto !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; background: #fff !important; color: #111 !important; overflow: visible !important; }
+  :is(.lumi-shell, .lumi-theme-scope) { display: block !important; padding: 0 !important; }
+  :is(.lumi-shell, .lumi-theme-scope) > main, :is(.lumi-shell, .lumi-theme-scope) main, :is(.lumi-shell, .lumi-theme-scope) .overflow-y-auto, :is(.lumi-shell, .lumi-theme-scope) .overflow-hidden { display: block !important; width: auto !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  :is(.lumi-shell, .lumi-theme-scope) main > div { padding: 0 !important; }
   .lumi-panel, .lumi-panel-muted, .lumi-control { background: #fff !important; color: #111 !important; box-shadow: none !important; border-color: #d1d5db !important; }
   .lumi-text, .lumi-muted, .lumi-muted-strong, .lumi-accent-text { color: #111 !important; }
   .lumi-content-auto { content-visibility: visible !important; contain: none !important; }

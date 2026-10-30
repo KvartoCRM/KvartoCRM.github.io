@@ -99,7 +99,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
         {saveError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{saveError}</div>}
         {!editData && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Тип события</label>
+            <label className="block text-sm font-medium lumi-text mb-3">Тип события</label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -110,7 +110,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
                   onChange={(e) => setEventType(e.target.value as 'meeting' | 'call')}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span className="text-gray-700">Встреча</span>
+                <span className="lumi-text">Встреча</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -121,55 +121,55 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
                   onChange={(e) => setEventType(e.target.value as 'meeting' | 'call')}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span className="text-gray-700">Звонок</span>
+                <span className="lumi-text">Звонок</span>
               </label>
             </div>
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Название</label>
+          <label className="block text-sm font-medium lumi-text mb-2">Название</label>
           <input
             type="text"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+            className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             placeholder="Например, Показ квартиры"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Дата</label>
+            <label className="block text-sm font-medium lumi-text mb-2">Дата</label>
             <input
               type="date"
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+            <label className="block text-sm font-medium lumi-text mb-2">Время</label>
             <input
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Тип клиента</label>
+          <label className="block text-sm font-medium lumi-text mb-2">Тип клиента</label>
           <select
             value={relatedClientType}
             onChange={(e) => {
               setRelatedClientType(e.target.value as 'owner' | 'buyer' | '')
               setRelatedClientId('')
             }}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+            className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
           >
             <option value="">Не выбран</option>
             <option value="owner">Собственник</option>
@@ -179,11 +179,11 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
         {relatedClientType && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Клиент</label>
+            <label className="block text-sm font-medium lumi-text mb-2">Клиент</label>
             <select
               value={relatedClientId}
               onChange={(e) => setRelatedClientId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             >
               <option value="">Не выбран</option>
               {relatedClientType === 'owner'
@@ -203,11 +203,11 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
         {eventType === 'meeting' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Объект</label>
+            <label className="block text-sm font-medium lumi-text mb-2">Объект</label>
             <select
               value={relatedPropertyId}
               onChange={(e) => setRelatedPropertyId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             >
               <option value="">Не выбран</option>
               {properties.map((property) => (
@@ -221,24 +221,24 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
         {eventType === 'meeting' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Локация</label>
+            <label className="block text-sm font-medium lumi-text mb-2">Локация</label>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
               placeholder="Адрес встречи"
             />
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Заметки</label>
+          <label className="block text-sm font-medium lumi-text mb-2">Заметки</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-black placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
+            className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
             placeholder="Дополнительные заметки"
           />
         </div>
@@ -247,7 +247,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+            className="flex-1 px-6 py-3 lumi-control rounded-xl font-medium hover:bg-gray-50 transition-all"
           >
             Отмена
           </button>

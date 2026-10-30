@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext'
 import { useClientRecords } from '../hooks/useClientRecords'
 import { usePropertyCatalog } from '../hooks/usePropertyCatalog'
 import { useCallActivities } from '../hooks/useCallActivities'
+import { useEvents } from '../hooks/useEvents'
+import NewEventForm from './NewEventForm'
 import { contactName, contactInitials, contactStatus } from '../lib/contactPresentation'
-import type { Client } from '../types'
+import type { Client, Event } from '../types'
 import OwnerForm from './OwnerForm'
 import BuyerForm from './BuyerForm'
 import QuickCallForm from './QuickCallForm'
@@ -19,6 +21,9 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
   const { toggleFavorite, removeClient, mutationPending } = useClientRecords(user?.id)
   const catalog = usePropertyCatalog(user?.id)
   const callQuery = useCallActivities(user?.id)
+  const eventQuery = useEvents(user?.id)
+  const [editingEvent,setEditingEvent] = useState<Event | null>(null)
+  const upcoming = (eventQuery.data || []).filter(event => !event.isCompleted && event.relatedClientId === client.id).sort((a,b) => `${a.eventDate} ${a.eventTime || ''}`.localeCompare(`${b.eventDate} ${b.eventTime || ''}`))
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
   const [calling, setCalling] = useState(false)
@@ -46,6 +51,7 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
     </div>
     {confirmDelete && <div className="lumi-panel-muted space-y-3 rounded-xl border p-3"><p className="lumi-text text-sm">Переместить контакт в корзину? Его можно восстановить в течение 5 дней.</p><div className="flex gap-2"><button disabled={mutationPending} onClick={() => void act(async () => { await removeClient(client.id); onDeleted() })} className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">В корзину</button><button onClick={() => setConfirmDelete(false)} className="lumi-control rounded-lg px-3 py-2 text-sm">Оставить</button></div></div>}
     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+    <section className="lumi-panel-muted rounded-xl border p-3"><h3 className="lumi-text mb-2 text-sm font-semibold">Ближайшие дела</h3>{eventQuery.error ? <p className="text-sm text-red-400">Не удалось загрузить расписание.</p> : eventQuery.isPending ? <p className="lumi-muted text-sm">Загрузка…</p> : upcoming.length ? <div className="space-y-2">{upcoming.slice(0,3).map(event => <button key={event.id} onClick={()=>setEditingEvent(event)} className="lumi-control block w-full rounded-lg p-2 text-left text-sm"><span className="lumi-text block">{event.title}</span><span className="lumi-muted">{new Date(`${event.eventDate}T12:00`).toLocaleDateString('ru-RU')}{event.eventTime ? ` · ${event.eventTime.slice(0,5)}` : ''}</span></button>)}{upcoming.length > 3 && <Link to="/work" className="lumi-accent-text text-xs">Все дела · {upcoming.length}</Link>}</div> : <p className="lumi-muted text-sm">Следующий контакт пока не назначен.</p>}</section>
     <div className="lumi-border flex gap-1 overflow-x-auto border-b" role="tablist" aria-label="Карточка контакта">{[['overview', 'Обзор'], ['history', 'История'], ['files', 'Документы'], ['connections', 'Связи']].map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`shrink-0 border-b-2 px-3 py-3 text-sm ${tab === id ? 'lumi-accent-text border-current font-semibold' : 'lumi-muted border-transparent'}`}>{label}</button>)}</div>
     <div role="tabpanel">
       {tab === 'overview' && <div className="space-y-5">
@@ -62,5 +68,6 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
     </div>
     {editing && (buyer ? <BuyerForm isOpen buyer={client} defaultPurpose={rent ? 'rent' : 'sale'} onClose={() => setEditing(false)} /> : <OwnerForm isOpen owner={client} mode={rent ? 'rent' : 'sale'} onClose={() => setEditing(false)} />)}
     {calling && <QuickCallForm contact={client} onClose={() => setCalling(false)} />}
+    {editingEvent && <NewEventForm isOpen editData={editingEvent} onClose={()=>setEditingEvent(null)} />}
   </div>
 }

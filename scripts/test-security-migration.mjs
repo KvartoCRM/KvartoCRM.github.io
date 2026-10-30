@@ -56,6 +56,15 @@ try {
 
   await db.query('insert into profiles(id) values ($1),($2)', [userA, userB])
   await db.query('insert into clients(id,user_id) values ($1,$2),($3,$4)', [clientA, userA, clientB, userB])
+  // The quick-call batch must roll back its journal row if the linked follow-up
+  // violates tenant ownership. Neither part may survive on its own.
+  const callId = '40000000-0000-4000-8000-000000000001'
+  const followupId = '40000000-0000-4000-8000-000000000002'
+  await assert.rejects(() => db.query('insert into events(id,user_id,related_client_id) values ($1,$2,null),($3,$2,$4)', [callId,userA,followupId,clientB]), /Referenced record does not belong to this office/)
+  assert.equal((await db.query('select id from events where id in ($1,$2)',[callId,followupId])).rows.length,0)
+  await db.query('insert into events(id,user_id,related_client_id) values ($1,$2,null),($3,$2,$4)',[callId,userA,followupId,clientA])
+  assert.equal((await db.query('select id from events where id in ($1,$2)',[callId,followupId])).rows.length,2)
+  await assert.rejects(() => db.query('insert into events(id,user_id,related_client_id) values ($1,$2,null),($3,$2,$4)',[callId,userA,followupId,clientA]),/duplicate key/)
   await assert.rejects(
     () => db.query('insert into properties(id,user_id,owner_id) values ($1,$2,$3)', [propertyA, userA, clientB]),
     /Referenced record does not belong to this office/,

@@ -1,3 +1,4 @@
+import { clearAccountDrafts } from '../lib/accountStorage'
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { authStorageKey, supabase } from '../lib/supabase'
@@ -564,6 +565,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const logout = async () => {
+    if (user) clearAccountDrafts(user.id)
     const { error: logoutError } = await supabase.auth.signOut({ scope: 'local' })
     if (logoutError) setError('Не удалось завершить сессию')
     else {

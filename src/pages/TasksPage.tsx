@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
 import { inDateRange, matchesText, sortRecords } from '../lib/listFiltering'
 import { useMemo, useState } from 'react'
@@ -50,7 +52,8 @@ const TasksPage = () => {
     mutationPending,
   } = useTasks(user?.id)
   const [error, setError] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'tasks', !loading)
+  const [filters, setFilters] = useListState(user?.id, 'filters:tasks')
   const [activeQuadrant, setActiveQuadrant] = useState<Quadrant>('plan')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -248,7 +251,7 @@ const TasksPage = () => {
         </button>
       </div>
 
-      <ListFilters values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredTasks.length} total={tasks.length} defaultSort="due" defaultDirection="asc" sortOptions={[{value:'due',label:'Срок'},{value:'created',label:'Дата создания'},{value:'name',label:'Название'},{value:'priority',label:'Приоритет'}]} fields={[
+      <ListFilters scope="tasks" onApply={setFilters} values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredTasks.length} total={tasks.length} defaultSort="due" defaultDirection="asc" sortOptions={[{value:'due',label:'Срок'},{value:'created',label:'Дата создания'},{value:'name',label:'Название'},{value:'priority',label:'Приоритет'}]} fields={[
         {key:'query',label:'Название или описание'},
         {key:'status',label:'Статус',options:[{value:'todo',label:'К выполнению'},{value:'inprogress',label:'В работе'},{value:'done',label:'Выполнено'}]},
         {key:'priority',label:'Приоритет',options:[{value:'high',label:'Высокий'},{value:'medium',label:'Средний'},{value:'low',label:'Низкий'}]},

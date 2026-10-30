@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters, { filterOptions } from '../components/ListFilters'
 import { filterCalls } from '../lib/listFiltering'
 import QuickCallForm from '../components/QuickCallForm'
@@ -69,8 +71,10 @@ const CallsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedCall, setSelectedCall] = useState<WorkCall | null>(null)
-  const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'calls', !loading)
+  const [filters, setFilters] = useListState(user?.id, 'filters:calls')
+  const search = filters.$search || ''
+  const setSearch = (value: string) => setFilters(current => ({...current,$search:value}))
   const [form, setForm] = useState(initialForm)
   const [error, setError] = useState('')
   const draftKey = user ? `lumicrm-call-draft:${user.id}` : ''
@@ -176,14 +180,14 @@ const CallsPage = () => {
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><button type="button" onClick={() => void printCurrentPage()} className="lumi-control flex items-center justify-center gap-2 rounded-xl px-4 py-3"><Download className="h-4 w-4" />PDF</button><button type="button" onClick={() => setQuickOpen(true)} className="lumi-gradient-button flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"><Plus className="h-5 w-5" />Записать звонок</button><button type="button" onClick={openCreate} className="lumi-control rounded-xl px-4 py-3 text-sm">Подробная запись</button></div>
       </div>
 
-      <ListFilters search={<label className="relative min-w-[180px] flex-1 sm:max-w-sm"><Search className="lumi-muted absolute left-3 top-2.5 h-4 w-4" /><input aria-label="Поиск звонков" value={search} onChange={event => setSearch(event.target.value)} placeholder="Имя, телефон или адрес" className="lumi-control w-full rounded-lg py-2 pl-9 pr-3 text-sm outline-none" /></label>} defaultSort="date" sortOptions={[{ value: 'date', label: 'Дата звонка' }, { value: 'name', label: 'Имя' }, { value: 'result', label: 'Результат' }, { value: 'source', label: 'Источник' }]} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={resetFilters} count={filtered.length} total={calls.length} fields={[
+      <ListFilters scope="calls" onApply={setFilters} search={<label className="relative min-w-[180px] flex-1 sm:max-w-sm"><Search className="lumi-muted absolute left-3 top-2.5 h-4 w-4" /><input aria-label="Поиск звонков" value={search} onChange={event => setSearch(event.target.value)} placeholder="Имя, телефон или адрес" className="lumi-control w-full rounded-lg py-2 pl-9 pr-3 text-sm outline-none" /></label>} defaultSort="date" sortOptions={[{ value: 'date', label: 'Дата звонка' }, { value: 'name', label: 'Имя' }, { value: 'result', label: 'Результат' }, { value: 'source', label: 'Источник' }]} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={resetFilters} count={filtered.length} total={calls.length} fields={[
         { key: 'type', label: 'Тип звонка', options: CALL_TYPES },
         { key: 'from', label: 'Дата с', type: 'date' }, { key: 'to', label: 'Дата по', type: 'date' },
         { key: 'timeFrom', label: 'Время суток с', type: 'time' }, { key: 'timeTo', label: 'Время суток до', type: 'time' },
         { key: 'result', label: 'Результат', options: filterOptions(calls.map(call => call.metadata?.status || call.outcome)) },
         { key: 'source', label: 'Источник', options: filterOptions(calls.map(call => call.source)) },
       ]}>
-        <div className="flex flex-wrap gap-2">{[0, 7, 30].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const start = new Date(); start.setDate(start.getDate() - Math.max(0, days - 1)); setFilters(current => ({ ...current, from: localDate(start), to: localDate() })) }}>{days === 0 ? 'Сегодня' : days === 7 ? '7 дней' : '30 дней'}</button>)}</div>
+        <div className="flex flex-wrap gap-2">{[0, 7, 30].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const start = new Date(); start.setDate(start.getDate() - Math.max(0, days - 1)); setFilters(current => ({ ...current, period: days === 0 ? 'today' : '', from: localDate(start), to: localDate() })) }}>{days === 0 ? 'Сегодня' : days === 7 ? '7 дней' : '30 дней'}</button>)}</div>
         {invalidRange && <p role="alert" className="text-sm text-amber-400">Начало периода должно быть не позже окончания.</p>}
       </ListFilters>
 

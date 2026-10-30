@@ -3,6 +3,8 @@ import { fetchAllRows } from './pagination'
 import { indexDealFinance, isDealFinanceComplete, mergeDealFinance, readDealFinance } from './dealFinance'
 import { inferContactRoles } from './contactRoles'
 import { countContactsByRole, isActiveDealRow } from './crmOverview'
+import { mapTaskRow } from './taskMapping'
+import { setTaskStatus } from './tasks'
 
 export type OverviewTask = {
   id: string
@@ -141,14 +143,14 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       .eq('user_id', userId)
       .is('deleted_at', null)
       .order('due_date', { ascending: true, nullsFirst: false })),
-    supabase
+    fetchAllRows(() => supabase
       .from('events')
       .select('id,type,title,event_date,event_time,location,is_completed')
       .eq('user_id', userId)
       .is('deleted_at', null)
       .eq('is_completed', false)
       .order('event_date', { ascending: true })
-      .limit(8),
+      .order('id', { ascending: true })),
     fetchAllRows(() => supabase
       .from('deals')
       .select('*')
@@ -246,10 +248,17 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
 }
 
 export async function completeOverviewItem(type: 'task' | 'event', id: string, userId: string) {
-  const table = type === 'task' ? 'tasks' : 'events'
+  if (type === 'task') {
+    const result = await supabase.from('tasks').select('*').eq('id',id).eq('user_id',userId).maybeSingle()
+    if (result.error) throw result.error
+    if (!result.data) throw new Error('Задача не найдена')
+    await setTaskStatus(userId, mapTaskRow(result.data), 'done')
+    return
+  }
+  const table = 'events'
   const { error } = await supabase
     .from(table)
-    .update(type === 'task' ? { is_completed: true, status: 'done' } : { is_completed: true })
+    .update({ is_completed: true })
     .eq('id', id)
     .eq('user_id', userId)
 

@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
 import { matchesText, inDateRange, sortRecords } from '../lib/listFiltering'
 import { contactName } from '../lib/contactPresentation'
@@ -62,7 +64,8 @@ const DealsPage = () => {
   const loading = dealsQuery.isLoading || propertyQuery.isLoading || contactsQuery.isLoading
   const loadError = dealsQuery.error || propertyQuery.error || contactsQuery.error
   const [actionError, setActionError] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'deals', !loading)
+  const [filters, setFilters] = useListState(user?.id, 'filters:deals')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
   const [formData, setFormData] = useState<DealFormData>(emptyForm)
@@ -247,7 +250,7 @@ const DealsPage = () => {
         </button>
       </div>
 
-      <ListFilters values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredDeals.length} total={deals.length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'price',label:'Цена'},{value:'status',label:'Статус'}]} fields={[
+      <ListFilters scope="deals" onApply={setFilters} values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredDeals.length} total={deals.length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'price',label:'Цена'},{value:'status',label:'Статус'}]} fields={[
         {key:'query',label:'Адрес, имя, телефон или заметка'},
         {key:'status',label:'Статус',options:Object.entries(statusLabel).map(([value,label])=>({value,label}))},
         {key:'stage',label:'Этап',options:Object.entries(stageLabel).map(([value,label])=>({value,label}))},

@@ -104,7 +104,7 @@ const AnchoredPopover = ({
       ref={panelRef}
       role="dialog"
       aria-label={ariaLabel}
-      className={`lumi-theme-menu fixed z-[200] min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl ${className}`}
+      className={`lumi-theme-scope lumi-theme-menu fixed z-[200] min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl ${className}`}
       style={position}
     >
       {children}

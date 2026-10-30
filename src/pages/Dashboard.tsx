@@ -427,7 +427,7 @@ const Dashboard = ({ children }: DashboardProps) => {
           </div>
         </header>
 
-        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 pb-8 md:p-8">
+        <div data-workspace-scroll className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 pb-8 md:p-8">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={`${location.pathname}${location.search}`}

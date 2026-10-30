@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters, { filterOptions } from '../components/ListFilters'
 import { matchesText, inDateRange, sortRecords } from '../lib/listFiltering'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -44,9 +46,12 @@ const ContactsHubPage = () => {
   const contacts = useMemo(() => clients.map(client => ({ ...client, roles: inferContactRoles(client as unknown as Record<string, unknown>), middleName: client.middleName || '', email: client.email || '' })), [clients])
   const selected = clients.find(client => client.id === params.get('client'))
   const closeContact = () => setParams(current => { const next = new URLSearchParams(current); next.delete('client'); return next }, { replace: true })
-  const [filter, setFilter] = useState<ContactFilter>((['seller', 'buyer', 'landlord', 'tenant'].includes(params.get('role') || '') ? params.get('role') : 'all') as ContactFilter)
-  const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'contacts', !loading)
+  const [filters, setFilters] = useListState(user?.id, 'filters:contacts')
+  const filter = (filters.$role || (['seller','buyer','landlord','tenant'].includes(params.get('role') || '') ? params.get('role') : 'all')) as ContactFilter
+  const setFilter = (role: ContactFilter) => setFilters(current => ({...current,$role:role}))
+  const query = filters.$search || ''
+  const setQuery = (value: string) => setFilters(current => ({...current,$search:value}))
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [newRole, setNewRole] = useState<ContactRole | null>(null)
   const error = loadError instanceof Error ? loadError.message : loadError ? 'Не удалось загрузить контакты.' : ''
@@ -103,7 +108,7 @@ const ContactsHubPage = () => {
         </div>
       </section>
 
-      <ListFilters values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => { setFilters({}); setQuery(''); setFilter('all') }} count={visibleContacts.length} total={contacts.length} defaultSort="name" defaultDirection="asc" sortOptions={[{value:'name',label:'Имя'},{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'next',label:'Следующий контакт'},{value:'status',label:'Статус'}]} fields={[
+      <ListFilters scope="contacts" onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => { setFilters({}); setQuery(''); setFilter('all') }} count={visibleContacts.length} total={contacts.length} defaultSort="name" defaultDirection="asc" sortOptions={[{value:'name',label:'Имя'},{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'next',label:'Следующий контакт'},{value:'status',label:'Статус'}]} fields={[
         {key:'status',label:'Статус',options:filterOptions(contacts.map(contact => contact.status)).map(option => ({...option,label:contactStatus(option.value)}))},
         {key:'source',label:'Источник',options:filterOptions(contacts.map(contact => contact.source))},
         {key:'favorite',label:'Избранное',options:[{value:'yes',label:'Только избранные'}]},

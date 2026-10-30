@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters, { filterOptions } from '../components/ListFilters'
 import { inNumberRange, sortRecords, matchesText } from '../lib/listFiltering'
 import { useState } from 'react'
@@ -14,12 +16,15 @@ const PropertiesPage = () => {
   const { data, isPending: loading, error: queryError, refetch, toggleFavorite: toggleFavoriteRecord, archiveProperty: archivePropertyRecord, removeProperty } = usePropertyCatalog(user?.id)
   const properties = data?.properties || []
   const clients = data?.clients || []
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'properties', !loading)
+  const [filters, setFilters] = useListState(user?.id, 'filters:properties')
+  const searchQuery = filters.$search || ''
+  const setSearchQuery = (value: string) => setFilters(current => ({...current,$search:value}))
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProperty, setEditingProperty] = useState<Property | null>(null)
   const [actionError, setActionError] = useState('')
-  const [workStream, setWorkStream] = useState<'active' | 'cold'>('active')
+  const workStream = filters.$stream === 'cold' ? 'cold' : 'active'
+  const setWorkStream = (value: 'active' | 'cold') => setFilters(current => ({...current,$stream:value}))
   const loadError = queryError instanceof Error ? queryError.message : queryError ? 'Не удалось загрузить объекты из облака.' : ''
 
   const filteredProperties = sortRecords(properties.filter(prop =>
@@ -101,7 +106,7 @@ const PropertiesPage = () => {
         <button type="button" onClick={() => setWorkStream('cold')} className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition ${workStream === 'cold' ? 'lumi-panel lumi-text shadow-sm' : 'lumi-muted'}`}>Холодная база · {properties.filter(item => item.workStream === 'cold').length}</button>
       </div>
 
-      <ListFilters values={filters} onChange={(key, value) => setFilters(current => ({...current,[key]:value}))} onReset={() => {setFilters({});setSearchQuery('');setWorkStream('active')}} count={filteredProperties.length} total={properties.filter(item => (item.workStream || 'active') === workStream).length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'address',label:'Адрес'},{value:'price',label:'Цена'},{value:'area',label:'Площадь'}]} fields={[
+      <ListFilters scope="properties" onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({...current,[key]:value}))} onReset={() => {setFilters({});setSearchQuery('');setWorkStream('active')}} count={filteredProperties.length} total={properties.filter(item => (item.workStream || 'active') === workStream).length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'address',label:'Адрес'},{value:'price',label:'Цена'},{value:'area',label:'Площадь'}]} fields={[
         {key:'type',label:'Тип недвижимости',options:filterOptions(properties.map(item=>item.propertyType))},
         {key:'listing',label:'Операция',options:[{value:'sale',label:'Продажа'},{value:'rent',label:'Аренда'}]},
         {key:'status',label:'Статус',options:filterOptions(properties.map(item=>item.status)).map(option=>({...option,label:getStatusText(option.value)}))},

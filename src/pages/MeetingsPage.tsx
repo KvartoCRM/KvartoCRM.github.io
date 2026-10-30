@@ -1,3 +1,5 @@
+import { useListScroll } from '../hooks/useListScroll'
+import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
 import { filterMeetings } from '../lib/listFiltering'
 import { localDate } from '../lib/contactPresentation'
@@ -9,14 +11,15 @@ import NewEventForm from '../components/NewEventForm'
 import type { Event } from '../types'
 import { useEvents } from '../hooks/useEvents'
 
-const MeetingsPage = () => {
+const MeetingsPage = ({ eventType = 'meeting' }: { eventType?: 'meeting' | 'call' }) => {
   const { user } = useAuth()
   const { data: events = [], isPending: loading, error: loadError, refetch, removeEvent } = useEvents(user?.id)
-  const meetings = events.filter(event => event.type === 'meeting')
+  const meetings = events.filter(event => event.type === eventType)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMeeting, setEditingMeeting] = useState<Event | null>(null)
   const [actionError, setActionError] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
+  useListScroll(user?.id, 'meetings', !loading)
+  const [filters, setFilters] = useListState(user?.id, `filters:${eventType}`)
   const visibleMeetings = filterMeetings(meetings, filters)
 
   const deleteMeeting = async (id: string) => {
@@ -38,6 +41,7 @@ const MeetingsPage = () => {
 
   const getTypeText = (type: string) => {
     switch (type) {
+      case 'call': return 'Звонок'
       case 'showing': return 'Показ'
       default: return 'Встреча'
     }
@@ -55,7 +59,7 @@ const MeetingsPage = () => {
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Встречи</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{eventType === 'call' ? 'Запланированные звонки' : 'Встречи'}</h1>
         <button
           onClick={() => {
           setEditingMeeting(null)
@@ -68,13 +72,13 @@ const MeetingsPage = () => {
         </button>
       </div>
 
-      <ListFilters values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => setFilters({})} count={visibleMeetings.length} total={meetings.length} defaultSort="date" defaultDirection="asc" sortOptions={[{value:'date',label:'Дата и время'},{value:'name',label:'Название'},{value:'location',label:'Место'},{value:'created',label:'Дата создания'}]} fields={[
+      <ListFilters scope={eventType} onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => setFilters({})} count={visibleMeetings.length} total={meetings.length} defaultSort="date" defaultDirection="asc" sortOptions={[{value:'date',label:'Дата и время'},{value:'name',label:'Название'},{value:'location',label:'Место'},{value:'created',label:'Дата создания'}]} fields={[
         {key:'query',label:'Название, место или заметка'},
         {key:'status',label:'Статус',options:[{value:'planned',label:'Запланированные'},{value:'completed',label:'Завершённые'}]},
         {key:'from',label:'Дата с',type:'date'},{key:'to',label:'Дата по',type:'date'},
         {key:'timeFrom',label:'Время суток с',type:'time'},{key:'timeTo',label:'Время суток до',type:'time'},
       ]}>
-        <div className="flex flex-wrap gap-2">{[0, 7].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const end = new Date(); end.setDate(end.getDate() + Math.max(0, days - 1)); setFilters(current => ({...current,from:localDate(),to:localDate(end)})) }}>{days ? 'Ближайшие 7 дней' : 'Сегодня'}</button>)}</div>
+        <div className="flex flex-wrap gap-2">{[0, 7].map(days => <button key={days} type="button" className="lumi-control rounded-lg px-3 py-1.5 text-xs" onClick={() => { const end = new Date(); end.setDate(end.getDate() + Math.max(0, days - 1)); setFilters(current => ({...current,period:days ? 'next7' : 'today',from:localDate(),to:localDate(end)})) }}>{days ? 'Ближайшие 7 дней' : 'Сегодня'}</button>)}</div>
         {(filters.from && filters.to && filters.from > filters.to || filters.timeFrom && filters.timeTo && filters.timeFrom > filters.timeTo) && <p role="alert" className="text-sm text-amber-400">Начало периода должно быть не позже окончания.</p>}
       </ListFilters>
 
@@ -146,19 +150,18 @@ const MeetingsPage = () => {
         {visibleMeetings.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
             <Calendar className="w-16 h-16 mb-4 text-gray-300" />
-            <p className="text-lg font-medium">{meetings.length ? 'Ничего не найдено' : 'Нет запланированных встреч'}</p>
-            <p className="text-sm mt-2">{meetings.length ? 'Измените фильтры или сбросьте условия.' : 'Создайте новую встречу'}</p>
+            <p className="text-lg font-medium">{meetings.length ? 'Ничего не найдено' : eventType === 'call' ? 'Нет запланированных звонков' : 'Нет запланированных встреч'}</p>
+            <p className="text-sm mt-2">{meetings.length ? 'Измените фильтры или сбросьте условия.' : 'Создайте новое событие'}</p>
           </div>
         )}
       </div>
 
-      <NewEventForm
+      <NewEventForm defaultType={eventType}
         isOpen={isModalOpen}
         onClose={() => {
         setIsModalOpen(false)
         setEditingMeeting(null)
       }}
-        defaultType="meeting"
         editData={editingMeeting}
       />
     </div>

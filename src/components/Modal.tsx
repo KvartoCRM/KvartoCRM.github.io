@@ -64,7 +64,7 @@ const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = true }: Mod
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="lumi-panel lumi-text flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full min-w-0 max-w-4xl flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:mx-4 sm:max-h-[90vh] sm:rounded-2xl"
+            className="lumi-theme-scope lumi-panel lumi-text flex max-h-[calc(100dvh-env(safe-area-inset-top))] w-full min-w-0 max-w-4xl flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:mx-4 sm:max-h-[90vh] sm:rounded-2xl"
           >
             <div className="lumi-border flex items-center justify-between border-b px-4 py-4 sm:px-8 sm:py-6">
               {title && <h2 id={titleId} className="lumi-text min-w-0 pr-3 text-xl font-bold sm:text-2xl">{title}</h2>}

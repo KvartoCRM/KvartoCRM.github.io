@@ -3,6 +3,7 @@ import { moveToTrash } from './trash'
 import { mapTaskRow, nextRecurringDate, taskFromInput, withoutMissingTaskColumn, type TaskUpsertInput } from './taskMapping'
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
+import { recurrenceId } from './recurrenceIdentity'
 
 export const fetchTasks = async (userId: string): Promise<Task[]> => {
   const { data, error } = await fetchAllRows(() => supabase
@@ -67,19 +68,21 @@ export const saveTask = async (userId: string, input: TaskUpsertInput, taskId?: 
 
 export const setTaskStatus = async (userId: string, task: Task, status: TaskStatus) => {
   const completedAt = status === 'done' ? new Date().toISOString() : null
-  const { data, error } = await supabase
-    .from('tasks')
-    .update({ status, is_completed: status === 'done', completed_at: completedAt })
-    .eq('id', task.id)
-    .eq('user_id', userId)
-    .select('id, user_id')
-    .maybeSingle()
-  if (error) throw error
-  if (data?.id !== task.id || data.user_id !== userId) throw new Error('Сервер не подтвердил изменение статуса задачи')
   await confirmTask(userId, task.id)
+  const ensureSuccessor = async () => {
   if (status === 'done' && task.recurrenceRule && task.recurrenceRule !== 'none') {
     const nextDueDate = nextRecurringDate(task.dueDate, task.recurrenceRule)
-    await writeTask(userId, crypto.randomUUID(), {
+    const nextId = await recurrenceId(userId, task.id)
+    const existing = await supabase.from('tasks').select('id').eq('user_id', userId).eq('id', nextId).maybeSingle()
+    if (existing.error) throw existing.error
+    if (existing.data) return { task, status, completedAt }
+    // Preserve continuations created by older application versions.
+    if (nextDueDate) {
+      const legacy = await supabase.from('tasks').select('id').eq('user_id',userId).eq('parent_task_id',task.parentTaskId || task.id).eq('due_date',nextDueDate).limit(1)
+      if (legacy.error) throw legacy.error
+      if (legacy.data?.length) return { task, status, completedAt }
+    }
+    try { await writeTask(userId, nextId, {
       title: task.title,
       description: task.description || null,
       status: 'todo',
@@ -93,8 +96,23 @@ export const setTaskStatus = async (userId: string, task: Task, status: TaskStat
       subtasks: (task.subtasks || []).map(item => ({ ...item, id: crypto.randomUUID(), completed: false })),
       is_completed: false,
       completed_at: null,
-    })
+    }) } catch (cause) {
+      if ((cause as {code?:string}).code !== '23505') throw cause
+      await confirmTask(userId, nextId)
+    }
   }
+  }
+  await ensureSuccessor()
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ status, is_completed: status === 'done', completed_at: completedAt })
+    .eq('id', task.id)
+    .eq('user_id', userId)
+    .select('id, user_id')
+    .maybeSingle()
+  if (error) throw error
+  if (data?.id !== task.id || data.user_id !== userId) throw new Error('Сервер не подтвердил изменение статуса задачи')
+  await confirmTask(userId, task.id)
   return { task, status, completedAt }
 }
 
