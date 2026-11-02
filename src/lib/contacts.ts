@@ -75,7 +75,7 @@ const contactPayload = (input: ContactInput) => ({
 export const fetchContactRecords = async (userId: string): Promise<Client[]> => {
   const { data, error } = await fetchAllRows(() => supabase
     .from('clients')
-    .select('*')
+    .select('*').is('merged_into', null)
     .eq('user_id', userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false }))

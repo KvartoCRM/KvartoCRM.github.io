@@ -1,3 +1,4 @@
+import DuplicateContactWarning from './DuplicateContactWarning'
 import { useEffect, useMemo, useState } from 'react'
 import { BellRing, Building2, Contact, MapPin, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -141,6 +142,7 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={owner ? `Редактировать ${personLabel}` : mode === 'rent' ? 'Новый арендодатель' : 'Новый собственник'}>
       <form onSubmit={handleSubmit} className="space-y-7">
+<DuplicateContactWarning phone={formData.phone} exceptId={owner?.id}/>
         <section className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
           <div className="mb-5 flex items-center gap-3">
             <div className="rounded-xl bg-blue-100 p-2 text-blue-600"><Contact className="h-5 w-5" /></div>

@@ -28,6 +28,7 @@ const FavoritesPage = lazy(routeLoaders.favorites)
 const SettingsPage = lazy(routeLoaders.settings)
 const CallsPage = lazy(routeLoaders.calls)
 const MonthlyPlanPage = lazy(routeLoaders.plan)
+const PublicSelectionPage = lazy(() => import('./pages/PublicSelectionPage'))
 const PublicPropertyPage = lazy(routeLoaders.publicProperty)
 
 const LoadingScreen = () => (
@@ -65,6 +66,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/set-password" element={<SetPasswordPage />} />
+              <Route path="/selection/:slug" element={<PublicSelectionPage />} />
               <Route path="/p/:slug" element={<PublicPropertyPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>

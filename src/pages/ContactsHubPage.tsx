@@ -1,3 +1,6 @@
+import { useEvents } from '../hooks/useEvents'
+import { eventStart } from '../lib/scheduling'
+import ContactDuplicatesPanel from '../components/ContactDuplicatesPanel'
 import { useListScroll } from '../hooks/useListScroll'
 import { useListState } from '../hooks/useListState'
 import ListFilters, { filterOptions } from '../components/ListFilters'
@@ -48,6 +51,7 @@ const ContactsHubPage = () => {
   const closeContact = () => setParams(current => { const next = new URLSearchParams(current); next.delete('client'); return next }, { replace: true })
   useListScroll(user?.id, 'contacts', !loading)
   const [filters, setFilters] = useListState(user?.id, 'filters:contacts')
+  const scheduledEvents = useEvents(user?.id)
   const filter = (filters.$role || (['seller','buyer','landlord','tenant'].includes(params.get('role') || '') ? params.get('role') : 'all')) as ContactFilter
   const setFilter = (role: ContactFilter) => setFilters(current => ({...current,$role:role}))
   const query = filters.$search || ''
@@ -60,11 +64,12 @@ const ContactsHubPage = () => {
 
   const visibleContacts = useMemo(() => {
     return sortRecords(contacts.filter(contact => {
+      if (filters.next === 'missing' && (!scheduledEvents.data || (contact.nextContactDate && new Date(contact.nextContactDate).getTime() >= Date.now()) || scheduledEvents.data.some(e=>e.relatedClientId===contact.id&&!e.isCompleted&&(eventStart(e)?.getTime() || 0)>=Date.now()))) return false
       if (filter !== 'all' && !contact.roles.includes(filter)) return false
       if (filters.status && contact.status !== filters.status || filters.source && contact.source !== filters.source || filters.favorite && !contact.isFavorite) return false
       return matchesText(query, [fullName(contact), contact.phone, contact.email, contact.source]) && inDateRange(contact.createdAt, filters.from, filters.to)
     }), contact => filters.sort === 'created' ? Date.parse(contact.createdAt) : filters.sort === 'updated' ? Date.parse(contact.updatedAt) : filters.sort === 'next' ? contact.nextContactDate : filters.sort === 'status' ? contactStatus(contact.status) : fullName(contact), filters.direction || 'asc')
-  }, [contacts, filter, query, filters])
+  }, [contacts, filter, query, filters, scheduledEvents.data])
 
   const openContact = (contact: ContactSummary) => {
     setParams(current => { const next = new URLSearchParams(current); next.set('client', contact.id); return next })
@@ -108,9 +113,12 @@ const ContactsHubPage = () => {
         </div>
       </section>
 
+      <ContactDuplicatesPanel clients={clients}/>
+      {filters.next && scheduledEvents.error && <p role="alert" className="text-red-400">Не удалось проверить расписание контактов.</p>}
       <ListFilters scope="contacts" onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => { setFilters({}); setQuery(''); setFilter('all') }} count={visibleContacts.length} total={contacts.length} defaultSort="name" defaultDirection="asc" sortOptions={[{value:'name',label:'Имя'},{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'next',label:'Следующий контакт'},{value:'status',label:'Статус'}]} fields={[
         {key:'status',label:'Статус',options:filterOptions(contacts.map(contact => contact.status)).map(option => ({...option,label:contactStatus(option.value)}))},
         {key:'source',label:'Источник',options:filterOptions(contacts.map(contact => contact.source))},
+        {key:'next',label:'Следующий шаг',options:[{value:'missing',label:'Без запланированного контакта'}]},
         {key:'favorite',label:'Избранное',options:[{value:'yes',label:'Только избранные'}]},
         {key:'from',label:'Создан с',type:'date'},{key:'to',label:'Создан по',type:'date'},
       ]} />

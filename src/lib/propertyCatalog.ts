@@ -38,7 +38,7 @@ export const fetchPropertyCatalog = async (userId: string): Promise<PropertyCata
       .order('created_at', { ascending: false })),
     fetchAllRows(() => supabase
       .from('clients')
-      .select('*')
+      .select('*').is('merged_into', null)
       .eq('user_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })),

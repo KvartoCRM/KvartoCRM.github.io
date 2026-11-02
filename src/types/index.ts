@@ -76,6 +76,9 @@ export interface Property {
 }
 
 export interface Deal {
+  responsibleName?: string
+  nextAction?: string
+  nextActionAt?: string
   id: string
   userId?: string
   propertyId: string
@@ -136,6 +139,10 @@ export interface Task {
 }
 
 export interface Event {
+  durationMinutes?: number
+  timeZone?: string
+  startsAt?: string
+  updatedAt?: string
   id: string
   userId: string
   type: 'meeting' | 'call'

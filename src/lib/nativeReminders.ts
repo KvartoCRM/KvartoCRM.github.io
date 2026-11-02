@@ -85,7 +85,7 @@ export const syncNativeReminders = async (userId: string) => {
 
   const [tasksResult, eventsResult] = await Promise.all([
     supabase.from('tasks').select('id,title,description,due_date,due_time,status,is_completed').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).neq('status', 'done').not('due_date', 'is', null).not('due_time', 'is', null),
-    supabase.from('events').select('id,type,title,event_date,event_time,location,notes,is_completed').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).not('event_time', 'is', null),
+    supabase.from('events').select('id,type,title,event_date,event_time,starts_at,location,notes,is_completed').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).not('event_time', 'is', null),
   ])
   if (tasksResult.error || eventsResult.error) return
 
@@ -104,7 +104,7 @@ export const syncNativeReminders = async (userId: string) => {
       title: `${event.type === 'call' ? 'Звонок' : 'Встреча'}: ${event.title}`,
       body: event.location || event.notes || 'Запланированное событие KvartoCRM',
       route: event.type === 'call' ? '/calls' : '/calendar',
-      dueAt: new Date(`${event.event_date}T${String(event.event_time).slice(0, 8)}`),
+      dueAt: new Date(event.starts_at || `${event.event_date}T${String(event.event_time).slice(0, 8)}+03:00`),
     })),
   ].filter(source => !Number.isNaN(source.dueAt.getTime()))
 
@@ -162,7 +162,7 @@ export const installNativeNotificationHandlers = async () => {
       if (sourceId && (sourceType === 'task' || sourceType === 'event')) {
         const date = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
         const time = `${String(next.getHours()).padStart(2, '0')}:${String(next.getMinutes()).padStart(2, '0')}:00`
-        const update = sourceType === 'task' ? { due_date: date, due_time: time } : { event_date: date, event_time: time }
+        const update = sourceType === 'task' ? { due_date: date, due_time: time } : { event_date: date, event_time: time, time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
         let query = supabase.from(sourceType === 'task' ? 'tasks' : 'events').update(update).eq('id', sourceId)
         if (userId) query = query.eq('user_id', userId)
         void query.then(() => window.dispatchEvent(new CustomEvent('lumicrm:remote-data-changed')))

@@ -15,6 +15,9 @@ export const WORKSPACE_BACKUP_TABLES = [
   'client_requirements',
   'monthly_plans',
   'property_shares',
+  'client_selections',
+  'selection_shares',
+  'contact_merge_log',
   'notifications',
   'notification_jobs',
   'push_subscriptions',
@@ -27,6 +30,7 @@ export type WorkspaceBackupTable = typeof WORKSPACE_BACKUP_TABLES[number]
 export type BackupRow = Record<string, unknown>
 
 export const SERVER_MANAGED_WORKSPACE_TABLES: WorkspaceBackupTable[] = [
+  'contact_merge_log',
   'notifications',
   'notification_jobs',
   'push_subscriptions',

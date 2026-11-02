@@ -1,4 +1,6 @@
-import { prepareRestoreIdentity, restoreStoragePath } from './workspaceRestoreIdentity'
+import { validateBackupReferences } from './backupValidation'
+import { buildFullArchive, MAX_ARCHIVE_BYTES } from './fullArchive'
+import { prepareRestoreIdentity, prepareTaskRestore, restoreStoragePath } from './workspaceRestoreIdentity'
 import { checkCloudConnection, supabase } from './supabase'
 import { getCachedCrmFileBlob } from './offlineFiles'
 import type { CrmFileRecord } from './files'
@@ -32,6 +34,8 @@ const RESTORE_TABLE_ORDER: WorkspaceBackupTable[] = [
   'client_requirements',
   'monthly_plans',
   'property_shares',
+  'client_selections',
+  'selection_shares',
   'crm_activities',
   'crm_imports',
   'crm_import_rows',
@@ -88,7 +92,7 @@ export const createWorkspaceBackup = async (userId: string): Promise<WorkspaceBa
   const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', userId).setHeader('x-lumicrm-network-only', 'true').maybeSingle()
   if (profileError) throw new Error(`Резервная копия не создана: профиль: ${profileError.message}`)
 
-  const tableResults = await mapWithConcurrency(WORKSPACE_BACKUP_TABLES, 3, async table => ({ table, ...(await loadUserTable(table, userId)) }))
+  const tableResults = await mapWithConcurrency(WORKSPACE_BACKUP_TABLES.filter(table => !SERVER_MANAGED_TABLES.has(table) || table === 'contact_merge_log'), 3, async table => ({ table, ...(await loadUserTable(table, userId)) }))
   const tables: Record<string, BackupRow[]> = {}
   for (const result of tableResults) {
     tables[result.table] = result.rows
@@ -107,18 +111,36 @@ export const createWorkspaceBackup = async (userId: string): Promise<WorkspaceBa
   })
 }
 
-export const downloadWorkspaceBackup = async (userId: string) => {
+export const downloadWorkspaceBackup = async (userId: string, onProgress?: (message: string) => void) => {
+  onProgress?.('Читаем записи…')
   const backup = await createWorkspaceBackup(userId)
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' })
+  validateBackupReferences(backup)
+  const files=new Map<string,Blob>()
+  let total=0
+  for(const row of backup.tables.crm_files || []) {
+    const id=String(row.id), url=backup.fileUrls[id]
+    let content=await getCachedCrmFileBlob(row as unknown as CrmFileRecord)
+    if(!content && url) content=await fetchBackupFile(url)
+    if(!content)throw new Error('Файл недоступен: '+String(row.name || id)+'. Полный архив не создан.')
+    total+=content.size
+    if(total>MAX_ARCHIVE_BYTES)throw new Error('Недостаточно места или архив больше 512 МБ. Копия не создана.')
+    if (typeof row.size_bytes === 'number' && row.size_bytes > 0 && content.size !== row.size_bytes) throw new Error('Размер файла не совпал: ' + String(row.name || id) + '. Архив не создан.')
+    files.set(id,content)
+    onProgress?.(`Файлы: ${files.size} из ${backup.tables.crm_files.length}`)
+  }
+  onProgress?.('Проверяем полноту копии…')
+  const second = await mapWithConcurrency(WORKSPACE_BACKUP_TABLES.filter(table => !SERVER_MANAGED_TABLES.has(table) || table === 'contact_merge_log'), 3, async table => ({table, ...(await loadUserTable(table, userId))}))
+  for (const {table, rows} of second) if (JSON.stringify(rows) !== JSON.stringify(backup.tables[table])) throw new Error('Данные изменились во время выгрузки. Повторите создание копии, чтобы сохранить согласованный архив.')
+  const blob = await buildFullArchive(backup,files)
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   const date = new Date().toISOString().slice(0, 10)
   anchor.href = url
-  anchor.download = `KvartoCRM-backup-${date}.json`
+  anchor.download = `KvartoCRM-backup-${date}.tar`
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   return backup
 }
 
@@ -148,6 +170,7 @@ const restoreFileRecords = async (
   userId: string,
   onProgress?: (progress: WorkspaceRestoreProgress) => void,
   originalFiles: BackupRow[] = [],
+  embeddedFiles?: Map<string,Blob>,
 ) => {
   const sourceRows = backup.tables.crm_files ?? []
   const restoredRows: BackupRow[] = []
@@ -171,11 +194,11 @@ const restoreFileRecords = async (
     const restoredRow = { ...withCurrentUser(row, userId), storage_path: storagePath }
     const signedUrl = backup.fileUrls[id]
     const sourceFile = { ...(originalFiles[index] || row), user_id: backup.sourceUserId } as CrmFileRecord
-    let blob = await getCachedCrmFileBlob(sourceFile)
+    let blob = embeddedFiles?.get(String(sourceFile.id)) || await getCachedCrmFileBlob(sourceFile)
     if (!signedUrl && !blob) {
-      if (backup.sourceUserId === userId) restoredRows.push(restoredRow)
+      skippedFiles += 1
+      if (backup.sourceUserId === userId) { restoredRows.push(restoredRow); warnings.push(`${String(row.name ?? id)}: сохранена только запись, содержимое файла не проверено.`) }
       else {
-        skippedFiles += 1
         warnings.push(`${String(row.name ?? `Файл №${index + 1}`)}: в копии и локальном кэше нет содержимого.`)
       }
       return
@@ -192,7 +215,7 @@ const restoreFileRecords = async (
       restoredRows.push(restoredRow)
     } catch (error) {
       if (backup.sourceUserId === userId) restoredRows.push(restoredRow)
-      else skippedFiles += 1
+      skippedFiles += 1
       const reason = error instanceof Error ? error.message : 'ссылка недоступна'
       warnings.push(`${String(row.name ?? `Файл №${index + 1}`)}: не удалось перенести содержимое (${reason}).`)
     }
@@ -210,8 +233,9 @@ const restoreFileRecords = async (
   await Promise.all(workers)
 
   for (const batch of chunks(restoredRows, UPSERT_BATCH_SIZE)) {
-    const { error } = await supabase.from('crm_files').upsert(batch)
+    const { data, error } = await supabase.from('crm_files').upsert(batch).select('id').setHeader('x-lumicrm-network-only', 'true')
     if (error) throw new Error(`crm_files: ${error.message}`)
+    if (data?.length !== batch.length) throw new Error('Не подтверждены записи файлов. Повторите тот же архив.')
   }
 
   return { restoredRows: restoredRows.length, restoredFiles, skippedFiles, warnings }
@@ -221,9 +245,12 @@ export const restoreWorkspaceBackup = async (
   input: WorkspaceBackup | string | unknown,
   userId: string,
   onProgress?: (progress: WorkspaceRestoreProgress) => void,
+  embeddedFiles?: Map<string,Blob>,
 ): Promise<WorkspaceRestoreResult> => {
   const original = parseWorkspaceBackup(input)
+  validateBackupReferences(original)
   const backup = await prepareRestoreIdentity(original, userId)
+  const taskRestore = prepareTaskRestore(backup.tables.tasks ?? [])
   const online = await checkCloudConnection()
   if (!online) throw new Error('Для восстановления нужна связь с сервисом. Подключитесь к интернету и повторите попытку.')
 
@@ -238,19 +265,31 @@ export const restoreWorkspaceBackup = async (
   let importedRows = 0
 
   for (const table of RESTORE_TABLE_ORDER) {
-    const sourceRows = backup.tables[table] ?? []
+    const sourceRows = table === 'tasks' ? taskRestore.rows : backup.tables[table] ?? []
     if (!sourceRows.length) continue
-    const preparedRows = sourceRows.map(row => withCurrentUser(row, userId))
+    const preparedRows = sourceRows.map(row => withCurrentUser(table === 'clients' ? {...row,merged_into:null} : row, userId))
     for (const batch of chunks(preparedRows, UPSERT_BATCH_SIZE)) {
-      const { error } = await supabase.from(table).upsert(batch)
-      if (error) throw new Error(`${table}: ${error.message}`)
+      const { data, error } = await supabase.from(table).upsert(batch).select(table === 'property_details' ? 'property_id' : 'id').setHeader('x-lumicrm-network-only', 'true')
+      if (error) throw new Error(`Восстановлено ${importedRows} записей. Остановка на ${table}: ${error.message}. Повторите этот же архив: уже обработанные записи сохранят свои идентификаторы.`)
+      if (data?.length !== batch.length) throw new Error(`Сервер не подтвердил все записи ${table}. Повторите тот же архив.`)
       importedRows += batch.length
+    }
+    if (table === 'tasks') {
+      for (const link of taskRestore.links) {
+        const result = await supabase.from('tasks').update({ parent_task_id: link.parentId }).eq('id', link.id).eq('user_id', userId).select('id').maybeSingle()
+        if (result.error || !result.data) throw new Error('Задачи восстановлены, но не все связи подтверждены. Повторите этот же архив. ' + (result.error?.message ?? ''))
+      }
     }
     completedTables += 1
     onProgress?.({ phase: 'records', label: `Восстанавливаем ${table}`, completed: completedTables, total: totalRecordTables })
   }
 
-  const files = await restoreFileRecords(backup, userId, onProgress, original.tables.crm_files)
+  for (const row of backup.tables.clients || []) {
+    if (!row.merged_into) continue
+    const result = await supabase.from('clients').update({merged_into:row.merged_into}).eq('id',row.id).eq('user_id',userId).select('id').maybeSingle()
+    if (result.error || !result.data) throw new Error('Записи восстановлены, но не подтверждены связи объединённых контактов. Повторите тот же архив.')
+  }
+  const files = await restoreFileRecords(backup, userId, onProgress, original.tables.crm_files, embeddedFiles)
   importedRows += files.restoredRows
   onProgress?.({ phase: 'complete', label: 'Восстановление завершено', completed: 1, total: 1 })
 
@@ -259,6 +298,6 @@ export const restoreWorkspaceBackup = async (
     restoredFiles: files.restoredFiles,
     skippedFiles: files.skippedFiles,
     skippedTables,
-    warnings: [...backup.warnings, ...files.warnings],
+    warnings: [...backup.warnings, ...files.warnings, ...((backup.tables.contact_merge_log?.length || 0) > 0 ? ['История объединений сохранена внутри архива для просмотра. В другом аккаунте отмена прежних объединений недоступна.'] : [])],
   }
 }

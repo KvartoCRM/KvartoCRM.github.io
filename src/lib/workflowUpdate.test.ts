@@ -39,3 +39,10 @@ test('account storage isolates users and clears only that account drafts',()=>{
  assert.equal(readAccountValue(a),null);assert.equal(readAccountValue(b),'b');assert.equal(readAccountValue(view),'view')
  assert.deepEqual(parseAccountValue('broken',{}),{});assert.deepEqual(parseAccountValue('[]',{}),{})
 })
+
+test('call result can schedule a meeting with an explicit device timezone',()=>{
+ const next=quickCallRows('user-1',{...draft,status:'Состоялся',nextKind:'meeting'},'buyer')[1]
+ assert.equal(next.type,'meeting');assert.equal(next.duration_minutes,60)
+ assert.equal(next.time_zone,Intl.DateTimeFormat().resolvedOptions().timeZone)
+ assert.equal(next.related_client_id,draft.clientId)
+})

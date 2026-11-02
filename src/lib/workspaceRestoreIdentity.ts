@@ -30,8 +30,8 @@ export const prepareRestoreIdentity = async (backup: WorkspaceBackup, userId: st
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([field, item]) => [field, rewrite(item, field)]))
     if (typeof value !== 'string') return value
     if (key === 'user_id') return userId
-    if (key === 'id' || key === 'slug' || /(?:_id|_ids|Id|Ids)$/.test(key)) return replacements.get(value) || value
-    if (key === 'external_key' && value.startsWith('call-log:')) return `call-log:${replacements.get(value.slice(9)) || value.slice(9)}`
+    if (key === 'id' || key === 'slug' || key === 'merged_into' || /(?:_id|_ids|Id|Ids)$/.test(key)) return replacements.get(value) || value
+    if (key === 'external_key') return value.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, id => replacements.get(id) || id)
     if (key === 'notes' && value.startsWith('kvartocrm-call-v1:')) {
       try { return `kvartocrm-call-v1:${JSON.stringify(rewrite(JSON.parse(value.slice('kvartocrm-call-v1:'.length))))}` } catch { return value }
     }
@@ -40,8 +40,23 @@ export const prepareRestoreIdentity = async (backup: WorkspaceBackup, userId: st
   const tables = Object.fromEntries(Object.entries(backup.tables).map(([table, rows]) => [table, rows.map(row => {
     const next = rewrite(row) as BackupRow
     // Importing records must not silently publish another account's shares.
-    if (table === 'property_shares') next.active = false
+    if (table === 'property_shares' || table === 'selection_shares') next.active = false
     return next
   })]))
-  return { ...backup, profile: null, tables, fileUrls: Object.fromEntries(Object.entries(backup.fileUrls).map(([id, url]) => [replacements.get(id) || id, url])), warnings: [...backup.warnings, 'Копия перенесена с новыми идентификаторами. Профиль текущего аккаунта сохранён, публичные ссылки из копии отключены.'] }
+  return { ...backup, profile: null, tables, fileUrls: Object.fromEntries(Object.entries(backup.fileUrls).map(([id, url]) => [replacements.get(id) || id, url])), warnings: [...backup.warnings] }
+}
+
+// Tenant checks run before each row is inserted, so parent links must be restored
+// only after every task exists, regardless of archive order or batch boundaries.
+export const prepareTaskRestore = (rows: BackupRow[]) => {
+  const ids = new Set(rows.map(row => row.id))
+  const links: { id: string; parentId: string }[] = []
+  for (const row of rows) {
+    if (!row.parent_task_id) continue
+    if (typeof row.id !== 'string' || typeof row.parent_task_id !== 'string' || !ids.has(row.parent_task_id)) {
+      throw new Error('В копии отсутствует родительская задача. Восстановление остановлено до записи данных: нужна полная копия задач.')
+    }
+    links.push({ id: row.id, parentId: row.parent_task_id })
+  }
+  return { rows: rows.map(row => ({ ...row, parent_task_id: null })), links }
 }

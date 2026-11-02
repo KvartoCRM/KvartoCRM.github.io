@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { calendarParts, conflictsFor, nextFreeTime, zonedInstant, DEFAULT_ZONE } from '../lib/scheduling'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Modal from './Modal'
 import type { Event } from '../types'
@@ -13,17 +14,23 @@ interface NewEventFormProps {
   onClose: () => void
   defaultType?: 'meeting' | 'call'
   editData?: Event | null
+  initialDate?: string
+  initialTime?: string
 }
 
-const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = null }: NewEventFormProps) => {
+const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = null, initialDate = '', initialTime = '' }: NewEventFormProps) => {
   const { user } = useAuth()
   const { data: contacts = [] } = useContacts(user?.id)
   const { data: propertyCatalog } = usePropertyCatalog(user?.id)
-  const { saveEvent, mutationPending: saving } = useEvents(user?.id)
+  const { data: events = [], saveEvent, mutationPending: saving } = useEvents(user?.id)
   const owners = contacts.filter(contact => contact.roles.includes('seller') || contact.roles.includes('landlord'))
   const buyers = contacts.filter(contact => contact.roles.includes('buyer') || contact.roles.includes('tenant'))
   const properties = propertyCatalog?.properties || []
   const [eventType, setEventType] = useState<'meeting' | 'call'>(defaultType)
+  const stableId = useRef(crypto.randomUUID())
+  const [duration, setDuration] = useState(60)
+  const [zone, setZone] = useState(DEFAULT_ZONE)
+  const [allowConflict, setAllowConflict] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -36,6 +43,8 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
   useEffect(() => {
     if (editData) {
+      setDuration(editData.durationMinutes || (editData.type === 'call' ? 15 : 60))
+      setZone(editData.timeZone || DEFAULT_ZONE)
       setTitle(editData.title)
       setDate(editData.eventDate)
       setTime(editData.eventTime || '')
@@ -52,8 +61,9 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
     } else {
       resetForm()
       setEventType(defaultType)
+      setDate(initialDate); setTime(initialTime); setDuration(defaultType === 'call' ? 15 : 60)
     }
-  }, [editData, defaultType])
+  }, [editData, defaultType, initialDate, initialTime])
 
   const resetForm = () => {
     setTitle('')
@@ -66,11 +76,21 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
     setNotes('')
   }
 
+  useEffect(() => { setAllowConflict(false) }, [date,time,duration,zone,events])
+  let start: Date | null = null
+  try { if (date && time) start = zonedInstant(date,time,zone) } catch { /* Validated before saving. */ }
+  const conflicts = start ? conflictsFor(events,start,duration,editData?.id) : []
+  const dirty = zone !== (editData?.timeZone || DEFAULT_ZONE) || eventType !== (editData?.type || defaultType) || title !== (editData?.title || '') || notes !== (editData?.notes || '') || date !== (editData?.eventDate || initialDate) || time !== (editData?.eventTime || initialTime) || location !== (editData?.location || '') || relatedClientId !== (editData?.relatedClientId || '') || relatedPropertyId !== (editData?.relatedPropertyId || '') || duration !== (editData?.durationMinutes || (defaultType === 'call' ? 15 : 60))
+  const close = () => { if (!saving && (!dirty || window.confirm('Изменения не сохранены. Закрыть форму и отказаться от них?'))) onClose() }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
 
+    if (!title.trim()) { setSaveError('Укажите название.'); return }
+    if (time && !start) { setSaveError('Проверьте дату, время и часовой пояс.'); return }
+    if (conflicts.length && !allowConflict) { setSaveError('Выберите свободное время или подтвердите пересечение.'); return }
     const eventData = {
+      durationMinutes: duration, timeZone: zone, expectedUpdatedAt: editData?.updatedAt,
       type: eventType,
       title,
       eventDate: date,
@@ -84,7 +104,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
     setSaveError('')
     try {
-      await saveEvent(eventData, editData?.id)
+      await saveEvent(eventData, editData?.id, stableId.current)
       resetForm()
       onClose()
       await syncNativeReminders(user.id).catch(() => undefined)
@@ -94,9 +114,10 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editData ? 'Редактировать событие' : 'Новое событие'}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {saveError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{saveError}</div>}
+    <Modal isOpen={isOpen} onClose={close} title={editData ? 'Редактировать событие' : 'Новое событие'}>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <fieldset disabled={saving} className="space-y-5">
+        {saveError && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{saveError}</div>}
         {!editData && (
           <div>
             <label className="block text-sm font-medium lumi-text mb-3">Тип события</label>
@@ -132,7 +153,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           <input
             type="text"
             required
-            value={title}
+            aria-label="Название" value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             placeholder="Например, Показ квартиры"
@@ -145,7 +166,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
             <input
               type="date"
               required
-              value={date}
+              aria-label="Дата" value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
@@ -154,17 +175,24 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
             <label className="block text-sm font-medium lumi-text mb-2">Время</label>
             <input
               type="time"
-              value={time}
+              aria-label="Время" value={time}
               onChange={(e) => setTime(e.target.value)}
               className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
           </div>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="lumi-text text-sm font-medium">Длительность, мин<input aria-label="Длительность, мин" type="number" min="5" max="1440" step="5" required value={duration} onChange={e=>setDuration(Number(e.target.value))} className="lumi-control mt-2 w-full rounded-xl px-4 py-3" /></label>
+          <label className="lumi-text text-sm font-medium">Часовой пояс<select aria-label="Часовой пояс" value={zone} onChange={e=>setZone(e.target.value)} className="lumi-control mt-2 w-full rounded-xl px-4 py-3">{Array.from(new Set([zone,DEFAULT_ZONE,Intl.DateTimeFormat().resolvedOptions().timeZone,'Europe/Kaliningrad','Asia/Yekaterinburg','Asia/Novosibirsk','Asia/Vladivostok','UTC'])).map(z=><option key={z} value={z}>{{'Europe/Moscow':'Москва · UTC+3','Europe/Kaliningrad':'Калининград · UTC+2','Asia/Yekaterinburg':'Екатеринбург · UTC+5','Asia/Novosibirsk':'Новосибирск · UTC+7','Asia/Vladivostok':'Владивосток · UTC+10','UTC':'Всемирное время · UTC'}[z] || z}</option>)}</select></label>
+        </div>
+        {editData && !editData.durationMinutes && <p className="lumi-muted text-xs">У старой записи нет длительности. Для встречи предложено 60 минут, для звонка 15. Значение можно изменить.</p>}
+        {conflicts.length > 0 && <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4" role="status"><h3 className="lumi-text font-semibold">Время уже занято</h3><ul className="lumi-text my-2 text-sm">{conflicts.map(item=><li key={item.id}>{item.title} · {item.eventTime?.slice(0,5)}</li>)}</ul><button type="button" className="lumi-control rounded-lg px-3 py-2 text-sm" onClick={()=>{if(start){const next=calendarParts(nextFreeTime(events,start,duration,editData?.id),zone);setDate(next.date);setTime(next.time)}}}>Выбрать ближайшее свободное время</button><label className="lumi-text mt-3 flex gap-2 text-sm"><input type="checkbox" checked={allowConflict} onChange={e=>setAllowConflict(e.target.checked)}/>Сохранить с пересечением</label></section>}
+
         <div>
           <label className="block text-sm font-medium lumi-text mb-2">Тип клиента</label>
           <select
-            value={relatedClientType}
+            aria-label="Тип клиента" value={relatedClientType}
             onChange={(e) => {
               setRelatedClientType(e.target.value as 'owner' | 'buyer' | '')
               setRelatedClientId('')
@@ -181,7 +209,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           <div>
             <label className="block text-sm font-medium lumi-text mb-2">Клиент</label>
             <select
-              value={relatedClientId}
+              aria-label="Клиент" value={relatedClientId}
               onChange={(e) => setRelatedClientId(e.target.value)}
               className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             >
@@ -205,7 +233,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           <div>
             <label className="block text-sm font-medium lumi-text mb-2">Объект</label>
             <select
-              value={relatedPropertyId}
+              aria-label="Объект" value={relatedPropertyId}
               onChange={(e) => setRelatedPropertyId(e.target.value)}
               className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             >
@@ -224,7 +252,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
             <label className="block text-sm font-medium lumi-text mb-2">Локация</label>
             <input
               type="text"
-              value={location}
+              aria-label="Локация" value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
               placeholder="Адрес встречи"
@@ -235,7 +263,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
         <div>
           <label className="block text-sm font-medium lumi-text mb-2">Заметки</label>
           <textarea
-            value={notes}
+            aria-label="Заметки" value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
             className="w-full px-4 py-3 rounded-xl lumi-control focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
@@ -243,10 +271,10 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           />
         </div>
 
-        <div className="flex gap-4">
+        <div className="lumi-panel sticky bottom-0 flex gap-3 border-t py-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="flex-1 px-6 py-3 lumi-control rounded-xl font-medium hover:bg-gray-50 transition-all"
           >
             Отмена
@@ -259,6 +287,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
             {saving ? 'Сохраняем…' : editData ? 'Сохранить изменения' : 'Сохранить'}
           </button>
         </div>
+        </fieldset>
       </form>
     </Modal>
   )

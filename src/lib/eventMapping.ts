@@ -1,6 +1,9 @@
 import type { Event } from '../types'
 
 export type EventUpsertInput = {
+  durationMinutes?: number
+  timeZone?: string
+  expectedUpdatedAt?: string
   type: Event['type']
   title: string
   eventDate: string
@@ -15,6 +18,10 @@ export type EventUpsertInput = {
 type CloudEventRow = Record<string, unknown>
 
 export const mapEventRow = (row: CloudEventRow): Event => ({
+  durationMinutes: typeof row.duration_minutes === 'number' ? row.duration_minutes : undefined,
+  timeZone: typeof row.time_zone === 'string' ? row.time_zone : undefined,
+  startsAt: typeof row.starts_at === 'string' ? row.starts_at : undefined,
+  updatedAt: typeof row.updated_at === 'string' ? row.updated_at : undefined,
   id: String(row.id),
   userId: typeof row.user_id === 'string' ? row.user_id : '',
   type: row.type === 'call' ? 'call' : 'meeting',
@@ -36,6 +43,8 @@ export const eventFromInput = (userId: string, id: string, input: EventUpsertInp
   id,
   userId,
   type: input.type,
+  durationMinutes: input.durationMinutes,
+  timeZone: input.timeZone,
   title: input.title,
   eventDate: input.eventDate,
   eventTime: input.eventTime,

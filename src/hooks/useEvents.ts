@@ -39,6 +39,7 @@ export const useEvents = (userId?: string) => {
       const next = makeSavedEvent(userId!, id, input, previous)
       return previous ? events.map(event => event.id === eventId ? next : event) : [...events, next]
     }),
+    onSuccess: saved => queryClient.setQueryData<Event[]>(queryKey, current => (current || []).map(event => event.id === saved.id ? saved : event)),
     onError: (_error, _variables, context) => restore(context),
     onSettled: refreshRelated,
   })
@@ -52,7 +53,7 @@ export const useEvents = (userId?: string) => {
 
   return {
     ...query,
-    saveEvent: (input: EventUpsertInput, eventId?: string) => saveMutation.mutateAsync({ input, eventId, id: eventId || crypto.randomUUID() }),
+    saveEvent: (input: EventUpsertInput, eventId?: string, newId?: string) => saveMutation.mutateAsync({ input, eventId, id: eventId || newId || crypto.randomUUID() }),
     removeEvent: trashMutation.mutateAsync,
     mutationPending: saveMutation.isPending || trashMutation.isPending,
   }

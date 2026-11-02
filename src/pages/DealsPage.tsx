@@ -1,3 +1,5 @@
+import DealBoard from '../components/DealBoard'
+import { useAccountState } from '../hooks/useAccountState'
 import { useListScroll } from '../hooks/useListScroll'
 import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
@@ -18,6 +20,9 @@ import type { Deal } from '../types'
 import type { ContactSummary } from '../lib/contacts'
 
 type DealFormData = {
+  responsibleName: string
+  nextAction: string
+  nextActionAt: string
   propertyId: string
   buyerIds: string[]
   ownerIds: string[]
@@ -35,6 +40,7 @@ type DealFormData = {
 type DealClient = ContactSummary
 
 const emptyForm: DealFormData = {
+  responsibleName: '', nextAction: '', nextActionAt: '',
   propertyId: '',
   buyerIds: [''],
   ownerIds: [''],
@@ -63,6 +69,7 @@ const DealsPage = () => {
   const clients = contactsQuery.data || []
   const loading = dealsQuery.isLoading || propertyQuery.isLoading || contactsQuery.isLoading
   const loadError = dealsQuery.error || propertyQuery.error || contactsQuery.error
+  const [view,setView] = useAccountState(user?.id,'deals:view','board')
   const [actionError, setActionError] = useState('')
   useListScroll(user?.id, 'deals', !loading)
   const [filters, setFilters] = useListState(user?.id, 'filters:deals')
@@ -87,6 +94,7 @@ const DealsPage = () => {
     setActionError('')
     setEditingDeal(deal ?? null)
     setFormData(deal ? {
+      responsibleName: deal.responsibleName || '', nextAction: deal.nextAction || '', nextActionAt: deal.nextActionAt ? new Date(new Date(deal.nextActionAt).getTime()-new Date(deal.nextActionAt).getTimezoneOffset()*60000).toISOString().slice(0,16) : '',
       propertyId: deal.propertyId,
       buyerIds: participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId).length > 0 ? participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId) : [''],
       ownerIds: participantIdsWithLegacyFallback(deal.ownerIds, deal.ownerId || properties.find(property => property.id === deal.propertyId)?.ownerId).length > 0
@@ -139,6 +147,7 @@ const DealsPage = () => {
         throw new Error('Для закрытой сделки укажите приход агентства и доход агента')
       }
       await dealsQuery.saveDeal({
+        responsibleName: formData.responsibleName, nextAction: formData.nextAction, nextActionAt: formData.nextActionAt ? new Date(formData.nextActionAt).toISOString() : undefined,
         propertyId: formData.propertyId,
         buyerIds,
         ownerIds,
@@ -250,6 +259,7 @@ const DealsPage = () => {
         </button>
       </div>
 
+<div className="flex gap-2" role="group" aria-label="Вид сделок">{[["board","Доска"],["list","Список"]].map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>setView(id)} className={`${view===id?"lumi-accent-soft":"lumi-control"} rounded-xl px-4 py-2`}>{label}</button>)}</div>
       <ListFilters scope="deals" onApply={setFilters} values={filters} onChange={(key,value)=>setFilters(current=>({...current,[key]:value}))} onReset={()=>setFilters({})} count={filteredDeals.length} total={deals.length} sortOptions={[{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'price',label:'Цена'},{value:'status',label:'Статус'}]} fields={[
         {key:'query',label:'Адрес, имя, телефон или заметка'},
         {key:'status',label:'Статус',options:Object.entries(statusLabel).map(([value,label])=>({value,label}))},
@@ -271,7 +281,7 @@ const DealsPage = () => {
           </section>
         </>
       )}
-      {loading ? (
+      {view === "board" && !loading && !loadError ? <DealBoard deals={filteredDeals} properties={properties} onOpen={openModal} onSaved={()=>void dealsQuery.refetch()}/> : loading ? (
         <div className="lumi-muted py-20 text-center">Загружаем сделки…</div>
       ) : filteredDeals.length === 0 ? (
         <div className="lumi-panel lumi-muted flex flex-col items-center justify-center rounded-2xl border py-20 text-center">
@@ -320,6 +330,7 @@ const DealsPage = () => {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingDeal ? 'Редактировать сделку' : 'Новая сделка'}>
         <form onSubmit={event => void handleSubmit(event)} className="space-y-5">
+<div className="grid gap-3 sm:grid-cols-2"><label className="lumi-text text-sm">Ответственный<input className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.responsibleName} onChange={e=>setFormData({...formData,responsibleName:e.target.value})} placeholder="Имя сотрудника"/></label><label className="lumi-text text-sm">Следующее действие<input className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.nextAction} onChange={e=>setFormData({...formData,nextAction:e.target.value})} placeholder="Например, согласовать договор"/></label><label className="lumi-text text-sm">Срок действия<input type="datetime-local" className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.nextActionAt} onChange={e=>setFormData({...formData,nextActionAt:e.target.value})}/></label></div>
           {(selectableProperties.length === 0 || buyers.length === 0 || owners.length === 0) && (
             <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
               Для сделки нужны объект, покупатель и собственник. Создайте отсутствующие карточки в соответствующих разделах.

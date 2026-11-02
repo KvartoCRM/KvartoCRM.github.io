@@ -3,6 +3,9 @@ import { DEAL_FINANCE_SNAPSHOT_ID, indexDealFinance, mergeDealFinance, readDealF
 import { indexDealParticipants, participantIdsWithLegacyFallback, type DealParticipantRow } from './dealParticipants.ts'
 
 export type DealUpsertInput = {
+  responsibleName?: string
+  nextAction?: string
+  nextActionAt?: string
   propertyId: string
   buyerIds: string[]
   ownerIds: string[]
@@ -61,6 +64,9 @@ export const mapDealRows = (
       stage: row.stage === 'documents' || row.stage === 'approval' || row.stage === 'registration' || row.stage === 'settlement' || row.stage === 'completed' || row.stage === 'lost'
         ? row.stage
         : 'preparation',
+      responsibleName: typeof row.responsible_name === 'string' ? row.responsible_name : '',
+      nextAction: typeof row.next_action === 'string' ? row.next_action : '',
+      nextActionAt: typeof row.next_action_at === 'string' ? row.next_action_at : '',
       lossReason: typeof row.loss_reason === 'string' ? row.loss_reason : undefined,
       checklist: Array.isArray(row.checklist)
         ? row.checklist.filter(item => item && typeof item === 'object').map(item => {
@@ -102,6 +108,7 @@ export const dealFromInput = (
   expenses: input.expenses ?? 0,
   stage: input.stage ?? 'preparation',
   lossReason: input.lossReason,
+  responsibleName: input.responsibleName, nextAction: input.nextAction, nextActionAt: input.nextActionAt,
   checklist: input.checklist ?? [],
   financeActivityId,
   status: input.status,

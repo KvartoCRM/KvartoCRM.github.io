@@ -126,7 +126,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
   const [clients, properties, tasks, events, deals, financeActivities] = await Promise.all([
     fetchAllRows(() => supabase
       .from('clients')
-      .select('*')
+      .select('*').is('merged_into', null)
       .eq('user_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })),

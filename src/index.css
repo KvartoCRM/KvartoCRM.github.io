@@ -628,3 +628,12 @@ body {
     min-height: 100dvw;
   }
 }
+
+/* Scheduling uses a day agenda on touch screens; the week retains readable columns. */
+.calendar-grid { display: grid; }
+.calendar-event { display: block; width: 100%; text-align: left; padding: .65rem; border-radius: .65rem; border: 1px solid var(--lumi-border); background: rgb(var(--lumi-accent-rgb) / .12); color: var(--lumi-text); margin-bottom: .25rem; }
+.calendar-call { border-left: 3px solid #a78bfa; }
+.calendar-slot { color: var(--lumi-muted); opacity: .65; }
+.calendar-slot:hover, .calendar-slot:focus-visible { background: var(--lumi-control); opacity: 1; }
+.calendar-desktop { display: none; }
+@media (min-width: 1024px) { .calendar-desktop { display: block; } .calendar-mobile { display: none; } }

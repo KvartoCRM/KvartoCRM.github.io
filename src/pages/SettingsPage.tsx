@@ -1,3 +1,5 @@
+import { queryClient } from '../lib/queryClient'
+import { readFullArchive, MAX_ARCHIVE_BYTES } from '../lib/fullArchive'
 import { useRef, useState } from 'react'
 import { Bell, BellRing, Camera, DatabaseBackup, FileJson, LayoutPanelLeft, LockKeyhole, LogOut, Maximize2, Palette, RefreshCw, Save, Settings, Smartphone, Trash2, Upload, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -22,7 +24,7 @@ const SettingsPage = () => {
   const [notificationMessage, setNotificationMessage] = useState('')
   const [backupMessage, setBackupMessage] = useState('')
   const [exportingBackup, setExportingBackup] = useState(false)
-  const [selectedBackup, setSelectedBackup] = useState<{ name: string; backup: WorkspaceBackup; summary: WorkspaceBackupSummary } | null>(null)
+  const [selectedBackup, setSelectedBackup] = useState<{ name: string; backup: WorkspaceBackup; summary: WorkspaceBackupSummary; files?: Map<string,Blob> } | null>(null)
   const [restoringBackup, setRestoringBackup] = useState(false)
   const [restoreProgress, setRestoreProgress] = useState('')
   const [restoreComplete, setRestoreComplete] = useState(false)
@@ -127,9 +129,9 @@ const SettingsPage = () => {
     setExportingBackup(true)
     setBackupMessage('')
     try {
-      const backup = await downloadWorkspaceBackup(user.id)
+      const backup = await downloadWorkspaceBackup(user.id, setBackupMessage)
       const rows = Object.values(backup.tables).reduce((total, table) => total + table.length, 0)
-      setBackupMessage(`Резервная копия сохранена: ${rows} записей${backup.warnings.length ? `. Предупреждений: ${backup.warnings.length}` : ''}.`)
+      setBackupMessage(`Архив подготовлен, скачивание начато: ${rows} записей${backup.warnings.length ? `. Предупреждений: ${backup.warnings.length}` : ''}.`)
     } catch (backupError) {
       setBackupMessage(backupError instanceof Error ? backupError.message : 'Не удалось создать резервную копию.')
     } finally {
@@ -143,9 +145,11 @@ const SettingsPage = () => {
     setRestoreProgress('')
     setRestoreComplete(false)
     try {
-      if (file.size > 50 * 1024 * 1024) throw new Error('Файл резервной копии больше 50 МБ. Выберите исходный JSON-файл KvartoCRM.')
-      const backup = parseWorkspaceBackup(await file.text())
-      setSelectedBackup({ name: file.name, backup, summary: summarizeWorkspaceBackup(backup) })
+      if (!file.name.toLowerCase().endsWith('.tar') && file.size > 50 * 1024 * 1024) throw new Error('JSON-копия больше 50 МБ.')
+      if (file.size > MAX_ARCHIVE_BYTES) throw new Error('Архив больше 512 МБ.')
+      const parsed = file.name.toLowerCase().endsWith('.tar') ? await readFullArchive(file) : {backup:parseWorkspaceBackup(await file.text()),files:undefined}
+      const {backup,files}=parsed
+      setSelectedBackup({ name: file.name, backup, files, summary: summarizeWorkspaceBackup(backup) })
     } catch (backupError) {
       setSelectedBackup(null)
       setBackupMessage(backupError instanceof Error ? backupError.message : 'Не удалось прочитать резервную копию.')
@@ -163,17 +167,18 @@ const SettingsPage = () => {
       const result = await restoreWorkspaceBackup(selectedBackup.backup, user.id, progress => {
         const counter = progress.total > 1 ? ` (${Math.min(progress.completed, progress.total)} из ${progress.total})` : ''
         setRestoreProgress(`${progress.label}${counter}`)
-      })
+      }, selectedBackup.files)
+      await queryClient.invalidateQueries({ queryKey: ['crm', user.id] })
       const details = [
         `${result.importedRows} записей`,
         result.restoredFiles ? `${result.restoredFiles} файлов` : '',
         result.skippedFiles ? `не перенесено файлов: ${result.skippedFiles}` : '',
-        result.skippedTables.length ? `служебные разделы пересозданы: ${result.skippedTables.length}` : '',
+        result.skippedTables.length ? `служебные разделы пропущены: ${result.skippedTables.length}` : '',
         result.warnings.length ? `предупреждений: ${result.warnings.length}` : '',
       ].filter(Boolean).join(' · ')
-      setBackupMessage(`Копия восстановлена: ${details}.`)
-      setRestoreComplete(true)
-      setSelectedBackup(null)
+      setBackupMessage(`Восстановление: ${details}. ${result.warnings.join(" ")}`)
+      setRestoreComplete(!result.skippedFiles && !result.warnings.length)
+      if (!result.skippedFiles && !result.warnings.length) setSelectedBackup(null)
     } catch (backupError) {
       setBackupMessage(backupError instanceof Error ? backupError.message : 'Не удалось восстановить резервную копию.')
     } finally {
@@ -249,14 +254,14 @@ const SettingsPage = () => {
             <DatabaseBackup className="lumi-accent-text mt-0.5 h-6 w-6" />
             <div>
               <h2 className="lumi-text text-xl font-semibold">Резервная копия офиса</h2>
-              <p className="lumi-muted mt-1 text-sm">Скачайте данные офиса или восстановите их из JSON-копии KvartoCRM.</p>
+              <p className="lumi-muted mt-1 text-sm">Скачайте данные офиса или восстановите их из архива KvartoCRM.</p>
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <button type="button" disabled={exportingBackup || restoringBackup} onClick={() => void exportBackup()} className="lumi-gradient-button inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold disabled:opacity-60">
-              <DatabaseBackup className="h-4 w-4" />{exportingBackup ? 'Подготавливаем…' : 'Скачать копию'}
+              <DatabaseBackup className="h-4 w-4" />{exportingBackup ? 'Подготавливаем…' : 'Скачать полный архив'}
             </button>
-            <input ref={backupInputRef} type="file" accept="application/json,.json" className="hidden" onChange={event => void selectBackup(event.target.files?.[0])} />
+            <input ref={backupInputRef} type="file" accept="application/json,.json,application/x-tar,.tar" className="hidden" onChange={event => void selectBackup(event.target.files?.[0])} />
             <button type="button" disabled={restoringBackup} onClick={() => backupInputRef.current?.click()} className="lumi-control inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold disabled:opacity-60">
               <Upload className="h-4 w-4" />Загрузить копию
             </button>
@@ -276,6 +281,7 @@ const SettingsPage = () => {
               Записи из копии будут добавлены или обновлены. Данные, созданные после этой копии, не удаляются. Служебная очередь уведомлений пересоздаётся автоматически.
             </div>
             {selectedBackup.summary.sourceUserId !== user.id && <p className="lumi-muted mt-3 text-sm">Копия создана в другом аккаунте. Записи получат новые идентификаторы и сохранят связи. Профиль этого аккаунта не изменится. Публичные ссылки из копии будут отключены.</p>}
+            {selectedBackup.files && <p className="mt-3 text-sm text-emerald-400">Целостность проверена: {selectedBackup.files.size} файлов внутри архива.</p>}
             {selectedBackup.summary.warnings.length > 0 && <p className="mt-3 text-sm text-amber-300">В исходной копии предупреждений: {selectedBackup.summary.warnings.length}.</p>}
             <button type="button" disabled={restoringBackup} onClick={() => void restoreBackup()} className="lumi-gradient-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold disabled:opacity-60 sm:w-auto">
               <RefreshCw className={`h-4 w-4 ${restoringBackup ? 'animate-spin' : ''}`} />{restoringBackup ? restoreProgress || 'Восстанавливаем…' : 'Восстановить данные'}
@@ -284,7 +290,7 @@ const SettingsPage = () => {
         )}
         {backupMessage && <p className={`mt-4 rounded-xl border px-4 py-3 text-sm ${restoreComplete ? 'border-emerald-700/40 bg-emerald-950/20 text-emerald-300' : 'lumi-border lumi-muted'}`}>{backupMessage}</p>}
         {restoreComplete && <button type="button" onClick={() => window.location.reload()} className="lumi-control mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"><RefreshCw className="h-4 w-4" />Обновить данные на экране</button>}
-        <p className="lumi-muted mt-4 text-xs leading-5">JSON-копия хранит записи и временные ссылки на файлы. Файлы переносятся, пока ссылки доступны. Если ссылка истекла, KvartoCRM дополнительно проверит локальный кэш устройства, на котором файл был загружен.</p>
+        <p className="lumi-muted mt-4 text-xs leading-5">Полный TAR-архив содержит записи, сами файлы и контрольные суммы. Ссылки на файлы ему не нужны. Перед восстановлением проверяется целостность. Старые JSON-копии также поддерживаются, но их ссылки могут истечь. При частичном сбое можно повторить тот же архив. Максимальный размер: 512 МБ.</p>
       </section>
 
       <section className="lumi-panel rounded-2xl border p-6">
