@@ -38,7 +38,17 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
   const change = (patch: Partial<QuickCallDraft>) => setDraft(current => ({ ...current, ...patch, updatedAt: Date.now() }))
-  const close = () => { if (!submitting.current) { if (dirty) setClosePrompt(true); else onClose() } }
+  const close = () => {
+    if (submitting.current) return
+    if (dirty) {
+      // Flush the latest input before unmounting, including a restored draft.
+      const raw = JSON.stringify(draft)
+      writeAccountValue(key, raw)
+      try { if (localStorage.getItem(key) !== raw) { setClosePrompt(true); return } }
+      catch { setClosePrompt(true); return }
+    }
+    onClose()
+  }
   const selectContact = (id: string) => { const person = clients.find(item => item.id === id); change({clientId:id,name:person ? contactName(person) : '',phone:person?.phone || ''}) }
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -59,7 +69,7 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
     finally { submitting.current = false; setSaving(false) }
   }
   const field = 'lumi-control mt-1.5 w-full min-w-0 rounded-xl px-3 py-2.5'
-  return <Modal isOpen onClose={close} title="Итог звонка" closeOnBackdrop={false}>
+  return <><Modal isOpen onClose={close} title="Итог звонка" closeOnBackdrop={false}>
     <form onSubmit={save} className="space-y-4">
       <p className="lumi-muted text-sm">Результат разговора и следующий контакт в одной форме.</p>
       {(restored || dirty) && <p className="lumi-muted text-xs" role="status">{durable ? restored ? 'Черновик восстановлен. Хранится на устройстве до 7 дней и удаляется при выходе из аккаунта.' : 'Черновик сохранён на этом устройстве.' : 'Хранилище недоступно. До сохранения в облаке не закрывайте приложение.'}</p>}
@@ -73,8 +83,16 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
         <details className="lumi-border border-t pt-3"><summary className="lumi-muted cursor-pointer text-sm">Дата, время и тип состоявшегося звонка</summary><div className="mt-3 grid gap-3 sm:grid-cols-3"><label className="lumi-text text-sm">Дата<input type="date" required className={field} value={draft.date} onChange={e => change({date:e.target.value})} /></label><label className="lumi-text text-sm">Время<input type="time" required className={field} value={draft.time} onChange={e => change({time:e.target.value})} /></label><label className="lumi-text text-sm">Тип<select className={field} value={draft.type} onChange={e => change({type:e.target.value as QuickCallDraft['type']})}><option value="warm">Тёплый</option><option value="cold">Холодный</option><option value="inbound">Входящий</option><option value="selection">По подбору</option></select></label></div></details>
       </fieldset>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      {closePrompt && <div role="alert" className="lumi-panel-muted space-y-3 rounded-xl border p-3"><p className="lumi-text text-sm">Оставить черновик для продолжения?</p><div className="flex flex-wrap gap-2"><button type="button" onClick={onClose} className="lumi-control rounded-lg px-3 py-2 text-sm">Оставить и закрыть</button><button type="button" onClick={() => { saved.current = true; writeAccountValue(key,null); onClose() }} className="rounded-lg px-3 py-2 text-sm text-red-400">Удалить черновик</button><button type="button" onClick={() => setClosePrompt(false)} className="lumi-control rounded-lg px-3 py-2 text-sm">Продолжить</button></div></div>}
+
       <div className="lumi-panel sticky bottom-0 flex flex-wrap justify-end gap-2 border-t py-3"><button type="button" disabled={saving} onClick={close} className="lumi-control rounded-xl px-4 py-2.5">Закрыть</button><button disabled={saving} className="lumi-gradient-button rounded-xl px-5 py-2.5 font-semibold disabled:opacity-50">{saving ? 'Сохраняем…' : draft.schedule ? 'Сохранить и запланировать' : 'Сохранить звонок'}</button></div>
     </form>
   </Modal>
+    <Modal isOpen={closePrompt} onClose={() => setClosePrompt(false)} title="Черновик не сохранён на устройстве" closeOnBackdrop={false}>
+      <p className="lumi-text">Хранилище недоступно. При закрытии черновик останется только в памяти приложения и может потеряться после перезагрузки.</p>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button type="button" onClick={() => setClosePrompt(false)} className="lumi-control rounded-xl px-4 py-2.5">Продолжить редактирование</button>
+        <button type="button" onClick={onClose} className="lumi-control rounded-xl px-4 py-2.5">Всё равно закрыть</button>
+      </div>
+    </Modal>
+  </>
 }

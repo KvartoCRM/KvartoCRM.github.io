@@ -69,6 +69,7 @@ const Modal = ({ isOpen, onClose, title, children, closeOnBackdrop = true }: Mod
             <div className="lumi-border flex items-center justify-between border-b px-4 py-4 sm:px-8 sm:py-6">
               {title && <h2 id={titleId} className="lumi-text min-w-0 pr-3 text-xl font-bold sm:text-2xl">{title}</h2>}
               <button
+                type="button"
                 onClick={onClose}
                 className="lumi-control p-2 rounded-xl transition-colors"
                 aria-label="Закрыть окно"
