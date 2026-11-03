@@ -1,8 +1,10 @@
+import { readAccounting } from './businessAccounting.ts'
 import type { Deal } from '../types'
-import { DEAL_FINANCE_SNAPSHOT_ID, indexDealFinance, mergeDealFinance, readDealFinance } from './dealFinance.ts'
+import { DEAL_FINANCE_SNAPSHOT_ID, indexDealFinance, reportedDealFinance } from './dealFinance.ts'
 import { indexDealParticipants, participantIdsWithLegacyFallback, type DealParticipantRow } from './dealParticipants.ts'
 
 export type DealUpsertInput = {
+  accounting?: Deal['accounting']
   responsibleName?: string
   nextAction?: string
   nextActionAt?: string
@@ -48,9 +50,10 @@ export const mapDealRows = (
     const participants = participantsByDeal.get(id)
     const buyerIds = participantIdsWithLegacyFallback(participants?.buyerIds, typeof row.buyer_id === 'string' ? row.buyer_id : undefined)
     const ownerIds = participantIdsWithLegacyFallback(participants?.ownerIds)
-    const finance = mergeDealFinance(financeByDeal.get(id), readDealFinance(row))
+    const finance = reportedDealFinance(row, financeByDeal.get(id))
     return {
       id,
+      accounting: readAccounting(row),
       userId: typeof row.user_id === 'string' ? row.user_id : undefined,
       propertyId: typeof row.property_id === 'string' ? row.property_id : '',
       buyerId: buyerIds[0],
@@ -109,6 +112,7 @@ export const dealFromInput = (
   stage: input.stage ?? 'preparation',
   lossReason: input.lossReason,
   responsibleName: input.responsibleName, nextAction: input.nextAction, nextActionAt: input.nextActionAt,
+  accounting: input.accounting ?? previous?.accounting,
   checklist: input.checklist ?? [],
   financeActivityId,
   status: input.status,

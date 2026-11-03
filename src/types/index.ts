@@ -76,6 +76,7 @@ export interface Property {
 }
 
 export interface Deal {
+  accounting?: import('../lib/businessAccounting').Accounting
   responsibleName?: string
   nextAction?: string
   nextActionAt?: string

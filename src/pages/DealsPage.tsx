@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom'
 import DealBoard from '../components/DealBoard'
 import { useAccountState } from '../hooks/useAccountState'
 import { useListScroll } from '../hooks/useListScroll'
@@ -5,7 +6,7 @@ import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
 import { matchesText, inDateRange, sortRecords } from '../lib/listFiltering'
 import { contactName } from '../lib/contactPresentation'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BriefcaseBusiness, Building2, CircleDollarSign, Edit, FileText, ListChecks, Plus, Trash2, TrendingUp, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
@@ -20,6 +21,7 @@ import type { Deal } from '../types'
 import type { ContactSummary } from '../lib/contacts'
 
 type DealFormData = {
+  accounting: NonNullable<Deal['accounting']>
   responsibleName: string
   nextAction: string
   nextActionAt: string
@@ -40,6 +42,7 @@ type DealFormData = {
 type DealClient = ContactSummary
 
 const emptyForm: DealFormData = {
+  accounting: {},
   responsibleName: '', nextAction: '', nextActionAt: '',
   propertyId: '',
   buyerIds: [''],
@@ -61,6 +64,7 @@ const clientName = (client?: DealClient) => client
 
 const DealsPage = () => {
   const { user } = useAuth()
+  const [searchParams,setSearchParams] = useSearchParams()
   const dealsQuery = useDeals(user?.id)
   const propertyQuery = useDealProperties(user?.id)
   const contactsQuery = useContacts(user?.id)
@@ -90,10 +94,11 @@ const DealsPage = () => {
     [editingDeal?.propertyId, properties],
   )
 
-  const openModal = (deal?: Deal) => {
+  const openModal = useCallback((deal?: Deal) => {
     setActionError('')
     setEditingDeal(deal ?? null)
     setFormData(deal ? {
+      accounting: deal.accounting || {},
       responsibleName: deal.responsibleName || '', nextAction: deal.nextAction || '', nextActionAt: deal.nextActionAt ? new Date(new Date(deal.nextActionAt).getTime()-new Date(deal.nextActionAt).getTimezoneOffset()*60000).toISOString().slice(0,16) : '',
       propertyId: deal.propertyId,
       buyerIds: participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId).length > 0 ? participantIdsWithLegacyFallback(deal.buyerIds, deal.buyerId) : [''],
@@ -111,7 +116,15 @@ const DealsPage = () => {
       notes: deal.notes || '',
     } : emptyForm)
     setIsModalOpen(true)
-  }
+  }, [properties])
+
+  useEffect(()=>{
+    const id=searchParams.get('edit')
+    if(!id||loading)return
+    const deal=deals.find(d=>d.id===id)
+    if(deal)openModal(deal)
+    const next=new URLSearchParams(searchParams);next.delete('edit');setSearchParams(next,{replace:true})
+  },[searchParams,setSearchParams,loading,deals,openModal])
 
   const handlePropertyChange = (propertyId: string) => {
     const property = properties.find(item => item.id === propertyId)
@@ -143,10 +156,14 @@ const DealsPage = () => {
       const buyerIds = [...new Set(formData.buyerIds.filter(Boolean))]
       const ownerIds = [...new Set(formData.ownerIds.filter(Boolean))]
       if (buyerIds.length === 0 || ownerIds.length === 0) throw new Error('Выберите хотя бы одного покупателя и одного собственника')
+      if (!formData.accounting.direction) throw new Error('Укажите направление сделки: продажа или аренда')
+      if (formData.status === 'closed' && !formData.accounting.closedOn) throw new Error('Укажите фактическую дату закрытия')
+      if (formData.accounting.paidOn && (formData.accounting.agencyReceived === undefined || formData.accounting.agentReceived === undefined)) throw new Error('Укажите полученные суммы, включая 0, если оплаты не было')
       if (formData.status === 'closed' && (formData.agencyIncome === undefined || formData.agentIncome === undefined)) {
-        throw new Error('Для закрытой сделки укажите приход агентства и доход агента')
+        throw new Error('Для закрытой сделки укажите вознаграждение агентства и доход агента')
       }
       await dealsQuery.saveDeal({
+        accounting: formData.accounting,
         responsibleName: formData.responsibleName, nextAction: formData.nextAction, nextActionAt: formData.nextActionAt ? new Date(formData.nextActionAt).toISOString() : undefined,
         propertyId: formData.propertyId,
         buyerIds,
@@ -308,7 +325,7 @@ const DealsPage = () => {
                 <div className="lumi-muted mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="lumi-accent-soft rounded-full px-3 py-1 font-medium">Этап: {stageLabel[deal.stage || 'preparation']}</span>{deal.checklist && deal.checklist.length > 0 && <span>{deal.checklist.filter(item => item.completed).length} из {deal.checklist.length} пунктов</span>}</div>
                 <div className="mt-5 space-y-3">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="lumi-panel-muted rounded-xl border p-3"><p className="lumi-muted text-xs">Приход агентства</p><p className="lumi-text mt-1 font-semibold">{formatMoney(deal.agencyIncome)}</p></div>
+                    <div className="lumi-panel-muted rounded-xl border p-3"><p className="lumi-muted text-xs">Вознаграждение агентства</p><p className="lumi-text mt-1 font-semibold">{formatMoney(deal.agencyIncome)}</p></div>
                     <div className="lumi-panel-muted rounded-xl border p-3"><p className="lumi-muted text-xs">Доход агента</p><p className="lumi-text mt-1 font-semibold">{formatMoney(deal.agentIncome)}</p></div>
                     <div className="lumi-panel-muted rounded-xl border p-3"><p className="lumi-muted text-xs">Расходы</p><p className="lumi-text mt-1 font-semibold">{formatMoney(deal.expenses)}</p></div>
                   </div>
@@ -330,6 +347,12 @@ const DealsPage = () => {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingDeal ? 'Редактировать сделку' : 'Новая сделка'}>
         <form onSubmit={event => void handleSubmit(event)} className="space-y-5">
+<fieldset className="lumi-panel-muted grid gap-3 rounded-xl border p-4 sm:grid-cols-2"><legend className="lumi-text px-2 font-semibold">Учёт сделки</legend>
+<label className="lumi-text text-sm">Направление<select aria-label="Направление" required className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.accounting.direction || ''} onChange={e=>setFormData({...formData,accounting:{...formData.accounting,direction:e.target.value as 'sale'|'rent'}})}><option value="">Требует уточнения</option><option value="sale">Продажа</option><option value="rent">Аренда</option></select></label>
+<label className="lumi-text text-sm">Дата закрытия<input type="date" required={formData.status==='closed'} className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.accounting.closedOn || ''} onChange={e=>setFormData({...formData,accounting:{...formData.accounting,closedOn:e.target.value}})}/></label>
+<label className="lumi-text text-sm">Дата поступления вознаграждения<input type="date" className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.accounting.paidOn || ''} onChange={e=>setFormData({...formData,accounting:{...formData.accounting,paidOn:e.target.value}})}/></label>
+{(['agencyReceived','agentReceived'] as const).map((key,i)=><label key={key} className="lumi-text text-sm">{i===0?'Получено агентством, ₽':'Получено агентом, ₽'}<input type="number" min="0" step="0.01" required={Boolean(formData.accounting.paidOn)} className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.accounting[key] ?? ''} onChange={e=>setFormData({...formData,accounting:{...formData.accounting,[key]:e.target.value===''?undefined:Number(e.target.value)}})}/></label>)}
+<p className="lumi-muted text-xs sm:col-span-2">Поступления заполняйте только после оплаты. Здесь фиксируется одна итоговая оплата; раздельные частичные платежи пока не учитываются. Залог и плата собственнику не являются вознаграждением.</p></fieldset>
 <div className="grid gap-3 sm:grid-cols-2"><label className="lumi-text text-sm">Ответственный<input className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.responsibleName} onChange={e=>setFormData({...formData,responsibleName:e.target.value})} placeholder="Имя сотрудника"/></label><label className="lumi-text text-sm">Следующее действие<input className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.nextAction} onChange={e=>setFormData({...formData,nextAction:e.target.value})} placeholder="Например, согласовать договор"/></label><label className="lumi-text text-sm">Срок действия<input type="datetime-local" className="lumi-control mt-1 w-full rounded-lg p-3" value={formData.nextActionAt} onChange={e=>setFormData({...formData,nextActionAt:e.target.value})}/></label></div>
           {(selectableProperties.length === 0 || buyers.length === 0 || owners.length === 0) && (
             <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
@@ -353,11 +376,11 @@ const DealsPage = () => {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Итоговая стоимость объекта *</label>
+              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">{formData.accounting.direction === 'rent' ? 'Месячная арендная ставка, ₽ *' : 'Стоимость продажи, ₽ *'}</label>
               <input type="number" required min="0" step="any" value={formData.price ?? ''} onChange={event => setFormData(current => ({ ...current, price: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
             </div>
             <div>
-              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Приход агентства{formData.status === 'closed' ? ' *' : ''}</label>
+              <label className="lumi-muted-strong mb-2 flex min-h-10 items-end text-sm font-medium">Вознаграждение агентства{formData.status === 'closed' ? ' *' : ''}</label>
               <input type="number" required={formData.status === 'closed'} min="0" step="any" value={formData.agencyIncome ?? ''} onChange={event => setFormData(current => ({ ...current, agencyIncome: event.target.value ? Number(event.target.value) : undefined }))} className="lumi-control w-full rounded-xl px-4 py-3 outline-none" placeholder="0" />
             </div>
             <div>

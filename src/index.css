@@ -637,3 +637,7 @@ body {
 .calendar-slot:hover, .calendar-slot:focus-visible { background: var(--lumi-control); opacity: 1; }
 .calendar-desktop { display: none; }
 @media (min-width: 1024px) { .calendar-desktop { display: block; } .calendar-mobile { display: none; } }
+
+/* Compact analytics controls: retain theme colours without oversized shadows. */
+.business-overview .lumi-control { box-shadow: none; }
+.business-overview .lumi-control:hover { box-shadow: 0 0 0 2px rgb(var(--lumi-accent-rgb) / 0.08); }

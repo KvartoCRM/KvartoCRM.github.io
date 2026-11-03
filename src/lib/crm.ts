@@ -1,3 +1,4 @@
+import { emptyBusiness, inPortfolio, currentProperty, type BusinessSource } from './businessAccounting'
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
 import { indexDealFinance, isDealFinanceComplete, mergeDealFinance, readDealFinance } from './dealFinance'
@@ -34,6 +35,8 @@ export type OverviewProperty = {
 }
 
 export type CrmOverview = {
+  business: BusinessSource
+  coldProperties: number
   owners: number
   buyers: number
   properties: number
@@ -111,6 +114,7 @@ const makePeriods = () => {
 }
 
 const emptyOverview: CrmOverview = {
+  business: emptyBusiness, coldProperties: 0,
   owners: 0,
   buyers: 0,
   properties: 0,
@@ -123,7 +127,7 @@ const emptyOverview: CrmOverview = {
 }
 
 export async function getCrmOverview(userId: string): Promise<CrmOverview> {
-  const [clients, properties, tasks, events, deals, financeActivities] = await Promise.all([
+  const [clients, properties, tasks, events, deals, financeActivities, mortgageActivities, propertyDetails] = await Promise.all([
     fetchAllRows(() => supabase
       .from('clients')
       .select('*').is('merged_into', null)
@@ -158,9 +162,11 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       .is('deleted_at', null)
       .order('created_at', { ascending: false })),
     fetchAllRows(() => supabase.from('crm_activities').select('id,external_key,metadata,created_at,updated_at').eq('user_id', userId).ilike('external_key', 'deal-finance:%').is('deleted_at', null).order('updated_at', { ascending: true })),
+    fetchAllRows(() => supabase.from('crm_activities').select('*').eq('user_id', userId).ilike('external_key', 'mortgage-application:%').is('deleted_at', null).order('created_at', { ascending: false })),
+    fetchAllRows(() => supabase.from('property_details').select('property_id,service_fields').eq('user_id', userId).order('property_id'), 'property_id'),
   ])
 
-  const firstError = [clients.error, properties.error, tasks.error, events.error, deals.error, financeActivities.error].find(Boolean)
+  const firstError = [clients.error, properties.error, tasks.error, events.error, deals.error, financeActivities.error, mortgageActivities.error, propertyDetails.error].find(Boolean)
   if (firstError) throw firstError
 
   const periods = makePeriods()
@@ -208,7 +214,9 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
     ...emptyOverview,
     owners: countContactsByRole(clients.data ?? [], 'seller'),
     buyers: countContactsByRole(clients.data ?? [], 'buyer'),
-    properties: properties.data?.length ?? 0,
+    properties: (properties.data || []).filter(inPortfolio).length,
+    coldProperties: (properties.data || []).filter(p=>currentProperty(p)&&p.work_stream==='cold').length,
+    business: { clients: clients.data || [], properties: (properties.data || []).map(p=>({...p,work_started_on:propertyDetails.data?.find(d=>d.property_id===p.id)?.service_fields?.work_started_on})), deals: deals.data || [], finance: financeActivities.data || [], mortgages: mortgageActivities.data || [] },
     activeDeals: (deals.data ?? []).filter(isActiveDealRow).length,
     completedToday: (tasks.data ?? []).filter(task => task.is_completed && typeof task.completed_at === 'string' && localDateKey(task.completed_at) === localDateKey(new Date())).length,
     tasks: (tasks.data ?? []).filter(task => !task.is_completed && task.status !== 'done').map(task => ({

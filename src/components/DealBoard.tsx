@@ -14,6 +14,7 @@ export default function DealBoard({deals,properties,onOpen,onSaved}:{deals:Deal[
     if(!change||!user||busy)return
     setBusy(true);setError('')
     try{
+      if(change.stage==='completed'&&(!change.deal.accounting?.direction||!change.deal.accounting?.closedOn))throw new Error('Укажите направление и дату закрытия в карточке сделки.')
       if(change.stage==='completed'&&(change.deal.agencyIncome===undefined||change.deal.agentIncome===undefined))throw new Error('Для завершения укажите финансы в карточке сделки.')
       const status=change.stage==='completed'?'closed':change.stage==='lost'?'cancelled':'active'
       const result=await supabase.from('deals').update({stage:change.stage,status}).eq('id',change.deal.id).eq('user_id',user.id).eq('updated_at',change.deal.updatedAt).is('deleted_at',null).select('id').setHeader('x-lumicrm-network-only','true').maybeSingle()

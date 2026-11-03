@@ -1,3 +1,4 @@
+import { ACCOUNTING_ID, accountingSnapshot, validateAccounting } from './businessAccounting'
 import { DEAL_FINANCE_SNAPSHOT_ID, dealFinanceKey, makeDealFinanceSnapshot } from './dealFinance'
 import { dealFromInput, mapDealRows, type DealRecord, type DealUpsertInput } from './dealMapping'
 import { makeDealParticipantRows, type DealParticipantRow } from './dealParticipants'
@@ -28,6 +29,7 @@ export const saveDeal = async (
   existingFinanceActivityId?: string,
   newFinanceActivityId?: string,
 ) => {
+  validateAccounting(input.accounting || {}, input.status)
   const id = dealId || newDealId || crypto.randomUUID()
   const financeId = existingFinanceActivityId || newFinanceActivityId || crypto.randomUUID()
   const buyerIds = [...new Set(input.buyerIds.filter(Boolean))]
@@ -56,7 +58,8 @@ export const saveDeal = async (
     expenses: input.expenses ?? 0,
     loss_reason: input.lossReason || null,
     checklist: [
-      ...(input.checklist ?? []).filter(item => item.id !== DEAL_FINANCE_SNAPSHOT_ID),
+      ...(input.checklist ?? []).filter(item => item.id !== DEAL_FINANCE_SNAPSHOT_ID && item.id !== ACCOUNTING_ID),
+      accountingSnapshot(input.accounting || {}),
       makeDealFinanceSnapshot({ agencyIncome: input.agencyIncome, agentIncome: input.agentIncome }),
     ],
     notes: input.notes || null,

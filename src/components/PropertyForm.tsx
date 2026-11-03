@@ -1,3 +1,4 @@
+import { localDate } from '../lib/contactPresentation'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Building2, FileText, Home, MapPin, Megaphone, Plus, Settings2, Tag, Trash2, WalletCards, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -106,6 +107,7 @@ type PropertyDetailsForm = {
   agentReward: string
   agencyReward: string
   executorReward: string
+  workStartedOn: string
   clientRole: string
   linkedValuationId: string
   linkedInsuranceId: string
@@ -122,7 +124,7 @@ type PropertyDetailsForm = {
 }
 
 const emptyProperty: PropertyFormData = {
-  address: '', listingType: 'sale', workStream: 'active', propertyType: 'Квартира', sourceUrl: '', price: undefined, rooms: undefined,
+  address: '', listingType: 'sale', workStream: 'cold', propertyType: 'Квартира', sourceUrl: '', price: undefined, rooms: undefined,
   area: undefined, floor: undefined, totalFloors: undefined, status: 'available', ownerId: '',
   tags: [], description: '', constructionYear: undefined, repair: '', balcony: false,
   elevator: false, parking: false, heating: 'central', walls: '',
@@ -146,7 +148,7 @@ const emptyDetails: PropertyDetailsForm = {
   houseType: '', houseSeries: '', newBuilding: false, renovationYear: '', serviceContract: '',
   ownershipType: '', privateNotes: '', publicNotes: '', excludeMls: false, feedEnabled: false,
   cianPrivate: false, cianNoPackage: false, callCenterComment: '', transferReason: '',
-  documentSourceCard: '', agentReward: '', agencyReward: '', executorReward: '', clientRole: '',
+  documentSourceCard: '', agentReward: '', agencyReward: '', executorReward: '', clientRole: '', workStartedOn: '',
   linkedValuationId: '', linkedInsuranceId: '', linkedMortgageId: '', linkedDealId: '',
   linkedBuyerId: '', linkedSellerId: '',
   rentContractCity: '', rentContractDate: '', occupantsCount: '', rentalOwnershipType: '', ownersCount: '', encumbrance: '',
@@ -257,7 +259,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
         cianPrivate: Boolean(publication.cian_private), cianNoPackage: Boolean(publication.cian_no_package),
         callCenterComment: service.call_center_comment || '', transferReason: service.transfer_reason || '',
         documentSourceCard: service.document_source_card || '', agentReward: service.agent_reward || '',
-        agencyReward: service.agency_reward || '', executorReward: service.executor_reward || '', clientRole: service.client_role || '',
+        agencyReward: service.agency_reward || '', executorReward: service.executor_reward || '', clientRole: service.client_role || '', workStartedOn: service.work_started_on || '',
         linkedValuationId: linked.valuation || '', linkedInsuranceId: linked.insurance || '', linkedMortgageId: linked.mortgage || '',
         linkedDealId: linked.deal || '', linkedBuyerId: linked.buyer || '', linkedSellerId: linked.seller || '',
         rentContractCity: rentalDeal.contract_city || '', rentContractDate: rentalDeal.contract_date || '',
@@ -337,7 +339,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
         public_notes: details.publicNotes || null,
         linked_cards: { valuation: details.linkedValuationId, insurance: details.linkedInsuranceId, mortgage: details.linkedMortgageId, deal: details.linkedDealId, buyer: details.linkedBuyerId, seller: details.linkedSellerId },
         publication_settings: { exclude_mls: details.excludeMls, feed_enabled: details.feedEnabled, cian_private: details.cianPrivate, cian_no_package: details.cianNoPackage },
-        service_fields: { call_center_comment: details.callCenterComment, transfer_reason: details.transferReason, document_source_card: details.documentSourceCard, agent_reward: details.agentReward, agency_reward: details.agencyReward, executor_reward: details.executorReward, client_role: details.clientRole },
+        service_fields: { call_center_comment: details.callCenterComment, transfer_reason: details.transferReason, document_source_card: details.documentSourceCard, agent_reward: details.agentReward, agency_reward: details.agencyReward, executor_reward: details.executorReward, client_role: details.clientRole, work_started_on: details.workStartedOn },
         rental_terms: { duration: details.rentalDuration, available_from: details.availableFrom || null, deposit_required: details.depositRequired, deposit_amount: numberOrNull(details.depositAmount), prepayment_months: numberOrNull(details.prepaymentMonths), utilities: details.utilities, meters: details.meters, owner_commission: details.ownerRentCommission, tenant_commission_percent: numberOrNull(details.tenantCommissionPercent), tenant_agent_commission_percent: numberOrNull(details.tenantAgentCommissionPercent), sleeping_places: numberOrNull(details.sleepingPlaces), air_conditioner: details.airConditioner, television: details.television, washing_machine: details.washingMachine, dishwasher: details.dishwasher, refrigerator: details.refrigerator, internet: details.internet, children_allowed: details.childrenAllowed, pets_allowed: details.petsAllowed },
         rental_deal_data: { contract_city: details.rentContractCity, contract_date: details.rentContractDate || null, occupants_count: numberOrNull(details.occupantsCount), ownership_type: details.rentalOwnershipType, owners_count: numberOrNull(details.ownersCount), encumbrance: details.encumbrance },
     }
@@ -380,7 +382,8 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
           {section === 'deal' && <>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Операция"><select value={formData.listingType} onChange={e => updateProperty('listingType', e.target.value as 'sale' | 'rent')} className={inputClass}><option value="sale">Продажа</option><option value="rent">Аренда</option></select></Field>
-              <Field label="Как работаем с объектом"><select value={formData.workStream} onChange={e => updateProperty('workStream', e.target.value as 'active' | 'cold')} className={inputClass}><option value="active">Мой объект в работе</option><option value="cold">Холодная база / пока только звонки</option></select></Field>
+              <Field label="Как работаем с объектом"><select value={formData.workStream} onChange={e => { updateProperty('workStream', e.target.value as 'active' | 'cold'); if(e.target.value==='active') updateDetails('workStartedOn',localDate()) }} className={inputClass}><option value="active">Мой объект в работе</option><option value="cold">Холодная база / пока только звонки</option></select></Field>
+              {formData.workStream==='active'&&<Field label="Дата принятия в работу"><input type="date" max={localDate()} value={details.workStartedOn} onChange={e=>updateDetails('workStartedOn',e.target.value)} className={inputClass}/><p className="lumi-muted mt-1 text-xs">Для старых объектов укажите известную дату. Неизвестная дата не попадёт в отчёт за период.</p></Field>}
               <Field label="Статус"><select value={formData.status} onChange={e => updateProperty('status', e.target.value as Property['status'])} className={inputClass}><option value="available">В продаже</option><option value="reserved">Забронирован</option><option value="sold">Продан</option><option value="archived">Архив</option></select></Field>
               <Field label="Тип продажи"><select value={details.saleType} onChange={e => updateDetails('saleType', e.target.value)} className={inputClass}><option value="direct">Свободная (прямая)</option><option value="alternative">Альтернативная</option><option value="assignment">Переуступка</option></select></Field>
               <Field label="Источник объявления" className="md:col-span-2"><input value={formData.sourceUrl} onChange={e => updateProperty('sourceUrl', e.target.value)} className={inputClass} placeholder="Ссылка на исходное объявление" /></Field>

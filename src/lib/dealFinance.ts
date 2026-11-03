@@ -102,3 +102,11 @@ export const indexDealFinance = (activities: DealFinanceActivity[]) => {
 export const formatMoney = (value?: number) => value === undefined
   ? 'Не указано'
   : `${value.toLocaleString('ru-RU')} ₽`
+
+// New accounting records keep their authoritative finance in the same deal row.
+// An auxiliary activity may be stale after a partial network failure.
+export const reportedDealFinance = (row: Record<string, unknown>, activity?: DealFinance): DealFinance => {
+ const snapshot=checklistFinance(row.checklist)
+ const hasAccounting=Array.isArray(row.checklist)&&row.checklist.some(item=>nestedRecord(item)?.id==='kvartocrm:accounting-v1')
+ return hasAccounting&&snapshot ? readDealFinance(snapshot) : mergeDealFinance(activity,readDealFinance(row))
+}

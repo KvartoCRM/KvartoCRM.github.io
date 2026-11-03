@@ -1,3 +1,4 @@
+import { emptyBusiness } from '../lib/businessAccounting'
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
@@ -6,6 +7,7 @@ import { crmQueryKeys } from '../lib/queryClient'
 import { clearWorkspaceNetworkRefresh, requestWorkspaceNetworkRefresh } from '../lib/offlineTransport'
 
 const initialValue: CrmOverview = {
+  business: emptyBusiness, coldProperties: 0,
   owners: 0,
   buyers: 0,
   properties: 0,

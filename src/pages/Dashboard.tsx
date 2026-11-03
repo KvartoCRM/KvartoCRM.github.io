@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import BusinessOverview from '../components/BusinessOverview'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertCircle,
   Archive,
@@ -39,7 +40,7 @@ import GlobalSearch from '../components/GlobalSearch'
 import ProfileMenu from '../components/ProfileMenu'
 import WorkspaceRefreshButton from '../components/WorkspaceRefreshButton'
 
-const DashboardAnalytics = lazy(() => import('../components/DashboardAnalytics'))
+
 
 interface DashboardProps {
   children?: ReactNode
@@ -74,8 +75,6 @@ const Dashboard = ({ children }: DashboardProps) => {
   const isHome = location.pathname === '/'
   const { data, loading, error, reload } = useCrmOverview(isHome)
   const [completingId, setCompletingId] = useState<string | null>(null)
-  const [dashboardMode, setDashboardMode] = useState<'sale' | 'rent' | 'mortgage'>('sale')
-  const [analyticsReady, setAnalyticsReady] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const reduceMotion = useReducedMotion()
 
@@ -90,17 +89,6 @@ const Dashboard = ({ children }: DashboardProps) => {
     return () => { document.body.style.overflow = previousOverflow }
   }, [mobileMenuOpen])
 
-  useEffect(() => {
-    if (!isHome) return
-    const idleWindow = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number; cancelIdleCallback?: (handle: number) => void }
-    const show = () => setAnalyticsReady(true)
-    if (idleWindow.requestIdleCallback) {
-      const handle = idleWindow.requestIdleCallback(show, { timeout: 2200 })
-      return () => idleWindow.cancelIdleCallback?.(handle)
-    }
-    const handle = window.setTimeout(show, 1200)
-    return () => window.clearTimeout(handle)
-  }, [isHome])
 
   useEffect(() => {
     const idleWindow = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number; cancelIdleCallback?: (handle: number) => void }
@@ -169,22 +157,9 @@ const Dashboard = ({ children }: DashboardProps) => {
   const stats = [
     { label: 'Собственники', value: data.owners, icon: Users, color: 'from-blue-500 to-cyan-500' },
     { label: 'Покупатели', value: data.buyers, icon: Heart, color: 'from-pink-500 to-rose-500' },
-    { label: 'Объекты', value: data.properties, icon: Building2, color: 'from-violet-500 to-purple-500' },
+    { label: 'Объекты в работе', value: data.properties, icon: Building2, color: 'from-violet-500 to-purple-500' },
     { label: 'Активные сделки', value: data.activeDeals, icon: BriefcaseBusiness, color: 'from-amber-500 to-orange-500' },
   ]
-
-  const chartConfig = {
-    sale: { firstKey: 'sellers', secondKey: 'buyers', firstLabel: 'Собственники', secondLabel: 'Покупатели', firstColor: '#f43f5e', secondColor: '#22c55e' },
-    rent: { firstKey: 'landlords', secondKey: 'tenants', firstLabel: 'Арендодатели', secondLabel: 'Арендаторы', firstColor: '#8b5cf6', secondColor: '#06b6d4' },
-    mortgage: { firstKey: 'mortgageLeads', secondKey: 'buyers', firstLabel: 'Ипотечные заявки', secondLabel: 'Все покупатели', firstColor: '#f59e0b', secondColor: '#22c55e' },
-  }[dashboardMode]
-  const currentAnalytics = data.analytics.months[data.analytics.months.length - 1]
-  const currentContacts = currentAnalytics
-    ? Number(currentAnalytics[chartConfig.firstKey as keyof typeof currentAnalytics]) + Number(currentAnalytics[chartConfig.secondKey as keyof typeof currentAnalytics])
-    : 0
-  const currentObjects = currentAnalytics
-    ? dashboardMode === 'rent' ? currentAnalytics.rentProperties : currentAnalytics.saleProperties
-    : 0
 
   const renderHome = () => (
     <div className="space-y-6">
@@ -229,50 +204,8 @@ const Dashboard = ({ children }: DashboardProps) => {
         })}
       </div>
 
-      <section className="lumi-panel lumi-showcase overflow-hidden rounded-2xl border">
-        <div className="lumi-border flex flex-col border-b sm:flex-row">
-          {([
-            ['sale', 'Купля-продажа'],
-            ['rent', 'Аренда'],
-            ['mortgage', 'Заявки на ипотеку'],
-          ] as const).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setDashboardMode(mode)}
-              className={`px-6 py-4 text-sm font-semibold uppercase tracking-wide transition ${dashboardMode === mode ? 'lumi-accent-bg' : 'lumi-nav-item'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="lumi-kpi-grid grid grid-cols-2 gap-px lg:grid-cols-3">
-          {[
-            ['Новые контакты за месяц', currentContacts],
-            ['Новые объекты за месяц', currentObjects],
-            ['Активные сделки', data.activeDeals],
-            ['Итоговая сумма закрытых сделок', `${data.analytics.totalDealVolume.toLocaleString('ru-RU')} ₽`],
-            ['Приход агентства', `${data.analytics.totalAgencyIncome.toLocaleString('ru-RU')} ₽`],
-            ['Доход агента', `${data.analytics.totalAgentIncome.toLocaleString('ru-RU')} ₽`],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="px-5 py-4">
-              <p className="lumi-muted text-xs uppercase tracking-wide">{label}</p>
-              <p className="lumi-text mt-2 text-2xl font-semibold">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {data.analytics.incompleteFinanceDeals > 0 && (
-          <div className="border-t border-amber-500/25 bg-amber-500/10 px-5 py-3 text-sm text-amber-300">
-            Финансы не заполнены у закрытых сделок: {data.analytics.incompleteFinanceDeals}. Откройте их в разделе «Сделки» и укажите приход агентства и доход агента.
-          </div>
-        )}
-
-        {analyticsReady
-          ? <Suspense fallback={<div className="lumi-muted p-8 text-center">Загружаем аналитику…</div>}><DashboardAnalytics analytics={data.analytics} config={chartConfig} /></Suspense>
-          : <div className="lumi-muted p-8 text-center">Аналитика появится после загрузки основных данных…</div>}
-      </section>
+      <p className="lumi-muted text-sm">Холодная база: {data.coldProperties}. В число объектов в работе не входит.</p>
+      <BusinessOverview source={data.business} onSaved={reload} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="lumi-panel lumi-showcase rounded-2xl border p-6 xl:col-span-2">
