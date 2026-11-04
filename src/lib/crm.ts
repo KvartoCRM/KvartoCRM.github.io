@@ -139,7 +139,6 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       .select('*')
       .eq('user_id', userId)
       .is('deleted_at', null)
-      .neq('status', 'archived')
       .order('created_at', { ascending: false })),
     fetchAllRows(() => supabase
       .from('tasks')
@@ -237,7 +236,7 @@ export async function getCrmOverview(userId: string): Promise<CrmOverview> {
       location: event.location ?? undefined,
       isCompleted: event.is_completed,
     })),
-    recentProperties: (properties.data ?? []).slice(0, 4).map(property => ({
+    recentProperties: (properties.data ?? []).filter(currentProperty).slice(0, 4).map(property => ({
       id: property.id,
       address: property.address,
       price: property.price ?? undefined,

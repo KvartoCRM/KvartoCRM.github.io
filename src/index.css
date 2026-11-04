@@ -641,3 +641,18 @@ body {
 /* Compact analytics controls: retain theme colours without oversized shadows. */
 .business-overview .lumi-control { box-shadow: none; }
 .business-overview .lumi-control:hover { box-shadow: 0 0 0 2px rgb(var(--lumi-accent-rgb) / 0.08); }
+
+/* Keep agenda titles readable regardless of available list width or font scaling. */
+.agenda-list { container-type: inline-size; }
+.agenda-row { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: .75rem; align-items: start; }
+.agenda-title { overflow-wrap: anywhere; }
+.agenda-actions { grid-column: 1 / -1; min-width: 0; }
+.agenda-actions > * { max-width: 100%; }
+@container (min-width: 48rem) {
+  .agenda-row { grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; }
+  .agenda-actions { grid-column: auto; max-width: 24rem; }
+}
+@container (max-width: 20rem) {
+  .agenda-row { grid-template-columns: minmax(0, 1fr); }
+  .agenda-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
+}
