@@ -1,0 +1,7 @@
+# KvartoCRM 1.5.3
+
+Adds History to Today, beside quick call and meeting actions. A single read-only modal includes recorded calls, completed meeting outcomes, and completed tasks. Entries show full notes, outcome, meeting reaction, next contact and links to the contact/property. Search includes names and notes; exact-date and type filters combine. Newest records first, grouped by day, 30 cards at a time with Show more.
+
+Data rules: modern and legacy calls deduplicate by stable record id; completed scheduled calls do not duplicate journal results. Meeting outcomes replace the corresponding completed calendar entry. Meetings use calendar date/time converted to Moscow, or clearly labelled outcome-recording date when the event is unavailable. Task completion date is preferred; legacy tasks with no completion timestamp explicitly label the planned-date fallback. Undated entries remain visible without a date filter. Deleted and unfinished records are excluded. All queries retain the account and trash filters. A failed source produces an explicit error/retry, not a silently incomplete history. No migration or data mutation.
+
+Validation: 144 unit tests plus 2 pretests; ESLint and production build. Browser fixtures exercise Today entry point, all three kinds, merged meeting result, full notes, combined filters, 30+ pagination, mobile 320/390 and desktop 1440 at enlarged font, Escape/cross/Close, failed read and retry, tenant filters, no writes or runtime errors. Mobile and desktop screenshots inspected. No physical-device test or live user-data changes.

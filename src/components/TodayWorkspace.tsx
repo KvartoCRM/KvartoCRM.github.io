@@ -1,10 +1,11 @@
+import WorkHistory from './WorkHistory'
 import { contactName, contactInitials } from '../lib/contactPresentation'
 import { calendarParts, eventStart, shiftDate } from '../lib/scheduling'
 import { useListState } from '../hooks/useListState'
 import MeetingResultForm from './MeetingResultForm'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Check, Clock, Phone, Plus, RefreshCw } from 'lucide-react'
+import { CalendarDays, Check, Clock, History, Phone, Plus, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTasks } from '../hooks/useTasks'
 import { useEvents } from '../hooks/useEvents'
@@ -20,6 +21,7 @@ import Modal from './Modal'
 type AgendaItem = { id:string; title:string; date?:string; time?:string; task?:Task; event?:Event }
 export default function TodayWorkspace() {
   const {user}=useAuth()
+  const [historyOpen,setHistoryOpen]=useState(false)
   const [filters,setFilters]=useListState(user?.id,'filters:today')
   const [focused,setFocused]=useState('')
   const [contextOpen,setContextOpen]=useState(false)
@@ -45,7 +47,7 @@ export default function TodayWorkspace() {
   const openTask=(value:Task)=>{setTask(value);setDate(value.dueDate || '');setTime(value.dueTime || '')}
   const contextPanel = <><h3 className="lumi-muted text-xs font-semibold uppercase tracking-wide">Контекст клиента</h3>{person?<><div className="mt-4 flex items-center gap-3"><span className="lumi-accent-soft flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-semibold">{contactInitials(person)}</span><div className="min-w-0"><h4 className="lumi-text break-words font-semibold">{contactName(person)}</h4><p className="lumi-muted text-xs">{person.type==='buyer'?'Покупатель':'Собственник'}</p></div></div><a className="lumi-accent-text mt-4 block text-sm" href={`tel:${person.phone.replace(/[^+\d]/g,'')}`}>{person.phone}</a>{person.budget&&<p className="lumi-text mt-3 text-sm">Бюджет: {person.budget.toLocaleString('ru-RU')} ₽</p>}{person.preferredDistricts?.length? <p className="lumi-muted mt-2 text-sm">{person.preferredDistricts.join(', ')}</p>:null}<p className="lumi-muted mt-4 whitespace-pre-wrap text-sm leading-relaxed">{person.contactComment||person.description||'Заметок пока нет.'}</p><button onClick={()=>{setCallContact(person.id);setQuick('new')}} className="lumi-gradient-button mt-5 w-full rounded-xl p-3 text-sm">Записать звонок клиенту</button><Link className="lumi-control mt-2 block rounded-xl p-3 text-center text-sm" to={`/contacts?client=${person.id}`}>Открыть карточку</Link></>:<p className="lumi-muted mt-4 text-sm">Выберите клиента в строке дела. Здесь появятся его контакты и пожелания.</p>}</>
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="lumi-text text-2xl font-bold">Сегодня</h2><p className="lumi-muted mt-1 text-sm">{new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',weekday:'long'})} · {items.filter(i=>i.date&&i.date<=today).length} дел требуют внимания</p></div><div className="flex flex-wrap gap-2"><button className="lumi-gradient-button inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" onClick={()=>{setCallContact('');setQuick('new')}}><Phone className="h-4 w-4"/>Записать звонок</button><button className="lumi-control inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" onClick={()=>setMeeting('new')}><Plus className="h-4 w-4"/>Встреча</button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="lumi-text text-2xl font-bold">Сегодня</h2><p className="lumi-muted mt-1 text-sm">{new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',weekday:'long'})} · {items.filter(i=>i.date&&i.date<=today).length} дел требуют внимания</p></div><div className="flex flex-wrap gap-2"><button onClick={()=>setHistoryOpen(true)} className="lumi-control inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm"><History className="h-4 w-4"/>История</button><button className="lumi-gradient-button inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" onClick={()=>{setCallContact('');setQuick('new')}}><Phone className="h-4 w-4"/>Записать звонок</button><button className="lumi-control inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" onClick={()=>setMeeting('new')}><Plus className="h-4 w-4"/>Встреча</button></div></div>
     {(error||tasks.error||events.error)&&<div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-red-500/30 p-3 text-sm text-red-400">{error||'Не удалось обновить все дела. Показанные данные могут быть неполными.'}<button className="lumi-control rounded-lg p-2" aria-label="Повторить загрузку" onClick={()=>{void tasks.refetch();void events.refetch()}}><RefreshCw className="h-4 w-4"/></button></div>}
     {(tasks.isPending||events.isPending)&&<p role="status" className="lumi-muted py-4">Загружаем дела…</p>}
     <div className="flex flex-wrap gap-2"><input aria-label="Поиск дел" placeholder="Дело или контакт" className="lumi-control min-w-0 flex-1 rounded-xl px-3 py-2" value={filters.query||''} onChange={e=>setFilters({...filters,query:e.target.value})}/><select aria-label="Тип дела" className="lumi-control rounded-xl px-3 py-2" value={filters.type||''} onChange={e=>setFilters({...filters,type:e.target.value})}><option value="">Все дела</option><option value="call">Звонки</option><option value="meeting">Встречи</option><option value="task">Задачи</option></select>{(filters.query||filters.type)&&<button className="lumi-accent-text px-2 text-sm" onClick={()=>setFilters({})}>Сбросить</button>}</div>
@@ -54,6 +56,7 @@ export default function TodayWorkspace() {
     {!visible.length&&items.length>0&&<p className="lumi-muted py-8 text-center">Нет дел по выбранным условиям.</p>}
     </div><aside className="lumi-panel hidden xl:block min-w-0 rounded-2xl border p-5 xl:sticky xl:top-4">{contextPanel}</aside></div><Modal isOpen={contextOpen} onClose={()=>setContextOpen(false)} title="Контакт">{contextPanel}</Modal>
     {!tasks.isPending&&!events.isPending&&!items.length&&!tasks.error&&!events.error&&<div className="lumi-panel rounded-xl border p-10 text-center"><CalendarDays className="lumi-accent-text mx-auto mb-3 h-8 w-8"/><p className="lumi-text">Открытых дел нет</p><p className="lumi-muted mt-2 text-sm">Добавьте встречу или запишите звонок со следующим шагом.</p></div>}
+    {historyOpen&&<WorkHistory onClose={()=>setHistoryOpen(false)}/>}
     {resultMeeting&&<MeetingResultForm event={resultMeeting} onClose={()=>setResultMeeting(null)}/>}
     {quick&&<QuickCallForm scheduledEvent={quick==='new'?undefined:quick} contact={callContact?clients.find(c=>c.id===callContact):quick==='new'?undefined:clients.find(c=>c.id===quick.relatedClientId)} onClose={()=>setQuick(null)}/>}
     {meeting&&<NewEventForm isOpen editData={meeting==='new'?null:meeting} onClose={()=>setMeeting(null)}/>}
