@@ -1,6 +1,7 @@
 export type CallType = 'cold' | 'warm' | 'inbound' | 'selection'
 
 export interface CallMetadata {
+  property_id?: string
   client_id?: string
   call_type: CallType
   status: string

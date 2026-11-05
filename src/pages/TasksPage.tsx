@@ -1,3 +1,4 @@
+import NextStepForm, {type StepContext} from '../components/NextStepForm'
 import { useListScroll } from '../hooks/useListScroll'
 import { useListState } from '../hooks/useListState'
 import ListFilters from '../components/ListFilters'
@@ -40,6 +41,7 @@ const isCompleted = (task: Task) => task.status === 'done' || task.isCompleted
 
 const TasksPage = () => {
   const { user } = useAuth()
+  const [nextStep,setNextStep]=useState<StepContext|null>(null)
   const {
     data: tasks = [],
     isPending: loading,
@@ -100,6 +102,7 @@ const TasksPage = () => {
     setError('')
     try {
       await updateStatus({ task, status: newStatus })
+      if(newStatus==='done')setNextStep({title:`После: ${task.title}`,clientId:task.smartCriteria?.clientId,propertyId:task.smartCriteria?.propertyId})
     } catch {
       setError('Не удалось изменить статус задачи.')
       return
@@ -241,6 +244,7 @@ const TasksPage = () => {
 
   return (
     <div className="space-y-6 pb-10">
+      {nextStep&&<NextStepForm afterCompleted context={nextStep} onClose={()=>setNextStep(null)}/>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="lumi-text text-3xl font-bold">Задачи</h1>

@@ -1,3 +1,4 @@
+import AiDraft from './AiDraft'
 import { localDate } from '../lib/contactPresentation'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Building2, FileText, Home, MapPin, Megaphone, Plus, Settings2, Tag, Trash2, WalletCards, X } from 'lucide-react'
@@ -179,6 +180,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
   const { data: propertyCatalog, saveProperty } = usePropertyCatalog(user?.id)
   const { data: propertyDetails } = usePropertyDetails(user?.id, property?.id, isOpen)
   const [section, setSection] = useState('deal')
+  const [aiDescription,setAiDescription]=useState(false)
   const [formData, setFormData] = useState<PropertyFormData>(emptyProperty)
   const [details, setDetails] = useState<PropertyDetailsForm>(emptyDetails)
   const [ownerRows, setOwnerRows] = useState<PropertyOwnerFormRow[]>([emptyOwnerRow('100')])
@@ -454,6 +456,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
 
           {section === 'advertising' && <>
             <Field label={`Рекламный заголовок — ${details.adTitle.length}/33`}><input maxLength={33} value={details.adTitle} onChange={e => updateDetails('adTitle', e.target.value)} className={inputClass} placeholder="Заголовок для порталов" /></Field>
+            <button type="button" onClick={()=>setAiDescription(true)} className="lumi-control rounded-xl px-4 py-2">ИИ: объявление Avito</button>{aiDescription&&<AiDraft mode="description" initialText={JSON.stringify({address:formData.address,listingType:formData.listingType,propertyType:formData.propertyType,rooms:formData.rooms,area:formData.area,floor:formData.floor,price:formData.price,repair:formData.repair,totalFloors:formData.totalFloors,constructionYear:formData.constructionYear,roomAreas:details.roomAreas,livingArea:details.livingArea,kitchenArea:details.kitchenArea,balconyType:details.balconyType,bathroomType:details.bathroomType,furniture:details.furniture,publicNotes:details.publicNotes,description:formData.description,publicationRestrictions:"Укажите, нужно ли скрыть адрес, цену, застройщика или другие сведения. Неизвестные условия мебели и техники уточнить отдельно."},null,2)} onApply={text=>{if(text.length>7500)throw new Error('Текст длиннее 7500 символов');updateProperty('description',text)}} onClose={()=>setAiDescription(false)}/>}
             <Field label={`Описание для рекламы и сайта — ${formData.description.length}/7500`}><textarea maxLength={7500} rows={7} value={formData.description} onChange={e => updateProperty('description', e.target.value)} className={`${inputClass} resize-y`} placeholder="Описание, которое можно публиковать в открытых источниках" /></Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label="Личные примечания"><textarea rows={4} value={details.privateNotes} onChange={e => updateDetails('privateNotes', e.target.value)} className={`${inputClass} resize-none`} /></Field><Field label="Публичные примечания"><textarea rows={4} value={details.publicNotes} onChange={e => updateDetails('publicNotes', e.target.value)} className={`${inputClass} resize-none`} /></Field></div>
             <div><p className="lumi-muted-strong mb-2 flex items-center gap-2 text-sm font-medium"><Tag className="h-4 w-4" />Теги</p><div className="mb-3 flex flex-wrap gap-2">{formData.tags.map(tag => <span key={tag} className="lumi-accent-soft flex items-center gap-1 rounded-full px-3 py-1 text-sm">{tag}<button type="button" onClick={() => updateProperty('tags', formData.tags.filter(item => item !== tag))}><X className="h-3.5 w-3.5" /></button></span>)}</div><div className="flex gap-2"><input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }} className={inputClass} placeholder="Добавить тег" /><button type="button" onClick={addTag} className="lumi-accent-bg mt-2 rounded-xl px-5">Добавить</button></div></div>

@@ -131,7 +131,7 @@ export interface Task {
   completedAt?: string
   category?: string
   project?: string
-  smartCriteria?: { specific?: string; measurable?: string; achievable?: string; relevant?: string; timeBound?: string }
+  smartCriteria?: { timeZone?: string; clientId?: string; propertyId?: string; specific?: string; measurable?: string; achievable?: string; relevant?: string; timeBound?: string }
   eisenhowerQuadrant?: 'do' | 'plan' | 'delegate' | 'eliminate'
   recurrenceRule?: 'none' | 'daily' | 'weekly' | 'monthly'
   parentTaskId?: string

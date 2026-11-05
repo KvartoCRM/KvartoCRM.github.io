@@ -3,7 +3,7 @@ import { mapCallActivityRow, mapCallEventRow, type WorkCall } from './callActivi
 
 type Row = Record<string, unknown>
 export type HistoryEntry = {
-  id: string; kind: 'call' | 'meeting' | 'task'; title: string; date: string; time: string
+  id: string; kind: 'call' | 'meeting' | 'task' | 'note' | 'message'; title: string; date: string; time: string
   dateNote?: string; notes: string; outcome: string; reaction?: string; next?: string
   clientId?: string; contact?: string; phone?: string; propertyId?: string; location?: string
 }
@@ -29,7 +29,7 @@ const callEntry = (call: WorkCall): HistoryEntry => ({
   id: `call:${call.id}`, kind: 'call', title: call.title || 'Звонок', ...historyDate(call.occurred_at),
   notes: [call.notes, call.metadata?.second_comment].filter(Boolean).join('\n\n'), outcome: call.outcome || call.metadata?.status || '',
   clientId: call.metadata?.client_id, contact: call.metadata?.contact_name, phone: call.metadata?.phone,
-  location: call.metadata?.address, next: call.metadata?.next_contact_at,
+  propertyId:call.metadata?.property_id, location: call.metadata?.address, next: call.metadata?.next_contact_at,
 })
 export function buildWorkHistory(events: Row[], activities: Row[], tasks: Row[]): HistoryEntry[] {
   const liveEvents = events.filter(r => !r.deleted_at), liveActivities = activities.filter(r => !r.deleted_at)
@@ -58,8 +58,9 @@ export function buildWorkHistory(events: Row[], activities: Row[], tasks: Row[])
   for (const row of tasks) {
     if (row.deleted_at || !(row.is_completed || row.status === 'done')) continue
     const completed = historyDate(row.completed_at)
-    entries.push({id:`task:${row.id}`,kind:'task',title:str(row.title)||'Задача',...(completed.date ? completed : {date:str(row.due_date),time:str(row.due_time).slice(0,5)}),dateNote:completed.date?'Дата выполнения':'Дата выполнения не сохранена; показан плановый срок',notes:str(row.description),outcome:'Выполнена'})
+    entries.push({id:`task:${row.id}`,kind:'task',title:str(row.title)||'Задача',...(completed.date ? completed : {date:str(row.due_date),time:str(row.due_time).slice(0,5)}),dateNote:completed.date?'Дата выполнения':'Дата выполнения не сохранена; показан плановый срок',notes:str(row.description),outcome:'Выполнена',clientId:str((row.smart_criteria as Row|undefined)?.clientId),propertyId:str((row.smart_criteria as Row|undefined)?.propertyId)})
   }
+  for(const row of liveActivities){if(!['note','message'].includes(str(row.type))||row.status!=='completed')continue;entries.push({id:`activity:${row.id}`,kind:row.type as 'note'|'message',title:str(row.title)||'Заметка',...historyDate(row.occurred_at||row.created_at),notes:str(row.notes),outcome:meta(row).kind==='owner_report'?'Черновик, не отправлен':str(row.outcome),clientId:str(row.client_id),propertyId:str(row.property_id)})}
   return entries.sort((a,b)=>`${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)||a.id.localeCompare(b.id))
 }
 export function filterWorkHistory(entries: HistoryEntry[], kind: string, date: string, query: string) {

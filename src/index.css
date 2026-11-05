@@ -656,3 +656,6 @@ body {
   .agenda-row { grid-template-columns: minmax(0, 1fr); }
   .agenda-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
 }
+
+/* Workday keeps touch actions readable without changing the desktop dashboard. */
+@media(max-width:767px){.workday-mode .agenda-row{padding:1rem;row-gap:.75rem}.workday-mode .agenda-actions button,.workday-mode .agenda-actions a{min-height:44px;font-size:.875rem}.workday-mode .agenda-title{font-size:1rem;line-height:1.5}}

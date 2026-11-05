@@ -31,7 +31,7 @@ export const saveEvent = async (userId: string, input: EventUpsertInput, eventId
     notes: input.notes || null,
     related_client_id: input.relatedClientId || null,
     related_client_type: input.relatedClientType || null,
-    related_property_id: input.type === 'meeting' ? input.relatedPropertyId || null : null,
+    related_property_id: input.relatedPropertyId || null,
   }
   let query = eventId
     ? supabase.from('events').update(payload).eq('id', eventId).eq('user_id', userId).is('deleted_at', null)

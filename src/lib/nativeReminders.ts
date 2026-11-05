@@ -84,7 +84,7 @@ export const syncNativeReminders = async (userId: string) => {
   if (!granted) return
 
   const [tasksResult, eventsResult] = await Promise.all([
-    supabase.from('tasks').select('id,title,description,due_date,due_time,status,is_completed').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).neq('status', 'done').not('due_date', 'is', null).not('due_time', 'is', null),
+    supabase.from('tasks').select('id,title,description,due_date,due_time,status,is_completed,smart_criteria').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).neq('status', 'done').not('due_date', 'is', null).not('due_time', 'is', null),
     supabase.from('events').select('id,type,title,event_date,event_time,starts_at,location,notes,is_completed').eq('user_id', userId).is('deleted_at', null).eq('is_completed', false).not('event_time', 'is', null),
   ])
   if (tasksResult.error || eventsResult.error) return
@@ -96,7 +96,7 @@ export const syncNativeReminders = async (userId: string) => {
       title: `Задача: ${task.title}`,
       body: task.description || 'Пришло время выполнить задачу',
       route: '/tasks',
-      dueAt: new Date(`${task.due_date}T${String(task.due_time).slice(0, 8)}`),
+      dueAt: new Date(`${task.due_date}T${String(task.due_time).slice(0, 8)}${task.smart_criteria?.timeZone==='Europe/Moscow'?'+03:00':''}`),
     })),
     ...(eventsResult.data ?? []).map(event => ({
       sourceType: 'event' as const,

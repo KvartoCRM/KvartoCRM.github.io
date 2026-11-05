@@ -1,3 +1,4 @@
+import NextStepForm from './NextStepForm'
 import { useEffect, useRef, useState } from 'react'
 import Modal from './Modal'
 import { useAuth } from '../context/AuthContext'
@@ -19,6 +20,7 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
     try { const value: unknown = JSON.parse(readAccountValue(key) || 'null'); if (validQuickDraft(value)) return value } catch { /* Ignore corrupt draft. */ }
     return { id: crypto.randomUUID(), nextId: crypto.randomUUID(), updatedAt: Date.now(), clientId: contact?.id || scheduledEvent?.relatedClientId || '', name: contact ? contactName(contact) : scheduledEvent?.title || '', phone: contact?.phone || '', status: 'Состоялся', notes: '', date: localDate(), time: new Date().toTimeString().slice(0,5), type: 'warm', schedule: false, nextDate: '', nextTime: '' }
   })
+  const [nextStep,setNextStep]=useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [closePrompt, setClosePrompt] = useState(false)
@@ -59,15 +61,16 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
     try {
       const person = contact || clients.find(item => item.id === draft.clientId)
       if (draft.clientId && !person) throw new Error('Не удалось загрузить выбранный контакт. Проверьте соединение и повторите.')
-      await saveQuickCall(user.id, draft, person ? person.type === 'seller' ? 'owner' : 'buyer' : undefined, scheduledEvent?.id)
+      await saveQuickCall(user.id, {...draft,propertyId:scheduledEvent?.relatedPropertyId||draft.propertyId}, person ? person.type === 'seller' ? 'owner' : 'buyer' : undefined, scheduledEvent?.id)
       saved.current = true
       writeAccountValue(key, null)
-      await Promise.all([queryClient.invalidateQueries({queryKey:crmQueryKeys.calls(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.events(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.overview(user.id)})])
+      await Promise.all([queryClient.invalidateQueries({queryKey:['work-history',user.id]}),queryClient.invalidateQueries({queryKey:crmQueryKeys.calls(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.events(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.overview(user.id)})])
       void syncNativeReminders(user.id).catch(() => undefined)
-      onClose()
+      if(draft.schedule)onClose();else setNextStep(true)
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Сохранение не подтверждено. Проверьте соединение и повторите. Данные остались в форме.') }
     finally { submitting.current = false; setSaving(false) }
   }
+  if(nextStep)return <NextStepForm afterCompleted context={{clientId:draft.clientId,propertyId:scheduledEvent?.relatedPropertyId,title:`Связаться: ${draft.name}`,kind:'call'}} onClose={onClose}/>
   const field = 'lumi-control mt-1.5 w-full min-w-0 rounded-xl px-3 py-2.5'
   return <><Modal isOpen onClose={close} title="Итог звонка" closeOnBackdrop={false}>
     <form onSubmit={save} className="space-y-4">

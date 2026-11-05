@@ -62,3 +62,7 @@ test('remapped import survives tenant RLS and repeat upsert without modifying th
     assert.equal(all.filter(row => row.user_id === source).length, 1)
   } finally { await db.close() }
 })
+
+ test('AI drafts and next-step task links survive account transfer without exposing source IDs',async()=>{
+ const backup=fixture();backup.tables.tasks=[{id:'70000000-0000-4000-8000-000000000001',user_id:source,title:'Следующий шаг',smart_criteria:{clientId:client,propertyId:property,timeZone:'Europe/Moscow'}}];backup.tables.crm_activities=[{id:'80000000-0000-4000-8000-000000000001',user_id:source,client_id:client,property_id:property,type:'note',notes:'Черновик отчёта',metadata:{kind:'owner_report',sent:false,period_start:'2026-10-29',period_end:'2026-11-05'}}];const result=await prepareRestoreIdentity(backup,target);assert.deepEqual(result.tables.tasks[0].smart_criteria,{clientId:result.tables.clients[0].id,propertyId:result.tables.properties[0].id,timeZone:'Europe/Moscow'});assert.equal(result.tables.crm_activities[0].client_id,result.tables.clients[0].id);assert.deepEqual(result.tables.crm_activities[0].metadata,backup.tables.crm_activities[0].metadata)
+ })

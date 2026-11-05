@@ -1,5 +1,5 @@
 export type QuickCallDraft = {
-  id: string; nextId: string; updatedAt: number; clientId: string; name: string; phone: string;
+  propertyId?: string; id: string; nextId: string; updatedAt: number; clientId: string; name: string; phone: string;
   status: string; notes: string; date: string; time: string; type: 'cold' | 'warm' | 'inbound' | 'selection';
   nextDate: string; nextTime: string; schedule: boolean; nextKind?: 'call' | 'meeting';
 }
@@ -8,6 +8,7 @@ export const validQuickDraft = (value: unknown, now = Date.now()): value is Quic
   const d = value as QuickCallDraft
   return /^[\da-f-]{36}$/i.test(d.id) && /^[\da-f-]{36}$/i.test(d.nextId) && typeof d.updatedAt === 'number' && now - d.updatedAt < 7 * 86400000
     && ['clientId','name','phone','status','notes','date','time','nextDate','nextTime'].every(k => typeof (d as unknown as Record<string, unknown>)[k] === 'string')
+    && (d.propertyId===undefined||typeof d.propertyId==='string')
     && (!d.nextKind || ['call','meeting'].includes(d.nextKind)) && ['cold','warm','inbound','selection'].includes(d.type) && typeof d.schedule === 'boolean'
 }
 export function quickCallError(d: QuickCallDraft, now = new Date()) {
@@ -28,8 +29,8 @@ export function quickCallError(d: QuickCallDraft, now = new Date()) {
 // The two rows are inserted by one PostgREST request, hence one DB transaction.
 export function quickCallRows(userId: string, d: QuickCallDraft, relatedClientType?: string) {
   const title = d.name.trim() || d.phone.trim()
-  const metadata = { client_id: d.clientId || undefined, contact_name: d.name.trim(), phone: d.phone.trim(), status: d.status, call_type: d.type, contact_method: 'Телефон', next_contact_at: d.schedule ? `${d.nextDate}T${d.nextTime}` : '' }
+  const metadata = { ...(d.propertyId?{property_id:d.propertyId}:{}), client_id: d.clientId || undefined, contact_name: d.name.trim(), phone: d.phone.trim(), status: d.status, call_type: d.type, contact_method: 'Телефон', next_contact_at: d.schedule ? `${d.nextDate}T${d.nextTime}` : '' }
   const rows: Record<string, unknown>[] = [{ id: d.id, user_id: userId, type: 'meeting', title, event_date: d.date, event_time: null, is_completed: true, related_client_id: null, related_client_type: null, external_key: `call-log:${d.id}`, notes: `kvartocrm-call-v1:${JSON.stringify({ occurred_at: new Date(`${d.date}T${d.time}`).toISOString(), source: null, outcome: d.status, notes: d.notes.trim() || null, metadata })}` }]
-  if (d.schedule) rows.push({ id: d.nextId, user_id: userId, type: d.nextKind || 'call', time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, duration_minutes: d.nextKind === 'meeting' ? 60 : 15, title: `${d.nextKind === 'meeting' ? 'Встреча' : 'Перезвонить'}: ${title}`, event_date: d.nextDate, event_time: d.nextTime, is_completed: false, external_key: `follow-up:${d.id}`, notes: d.notes.trim() || null, related_client_id: d.clientId || null, related_client_type: relatedClientType || null })
+  if (d.schedule) rows.push({ id: d.nextId, user_id: userId, type: d.nextKind || 'call', time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone, duration_minutes: d.nextKind === 'meeting' ? 60 : 15, title: `${d.nextKind === 'meeting' ? 'Встреча' : 'Перезвонить'}: ${title}`, event_date: d.nextDate, event_time: d.nextTime, is_completed: false, external_key: `follow-up:${d.id}`, notes: d.notes.trim() || null, related_client_id: d.clientId || null, related_client_type: relatedClientType || null, ...(d.propertyId?{related_property_id:d.propertyId}:{}) })
   return rows
 }

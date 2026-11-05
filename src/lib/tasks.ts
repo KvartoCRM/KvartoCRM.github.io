@@ -4,6 +4,7 @@ import { mapTaskRow, nextRecurringDate, taskFromInput, withoutMissingTaskColumn,
 import { supabase } from './supabase'
 import { fetchAllRows } from './pagination'
 import { recurrenceId } from './recurrenceIdentity'
+import {sameTaskPayload} from './taskRetry'
 
 export const fetchTasks = async (userId: string): Promise<Task[]> => {
   const { data, error } = await fetchAllRows(() => supabase
@@ -26,6 +27,11 @@ const writeTask = async (userId: string, id: string, source: Record<string, unkn
       : await supabase.from('tasks').insert({ ...payload, id, user_id: userId }).select('id, user_id').maybeSingle()
     if (!result.error && result.data?.id === targetId && result.data.user_id === userId) return
     if (!result.error) throw new Error('Сервер не подтвердил сохранение задачи')
+    if(!taskId&&result.error.code==='23505'){
+      const existing=await supabase.from('tasks').select('*').eq('id',id).eq('user_id',userId).maybeSingle()
+      if(!existing.error&&existing.data&&sameTaskPayload(existing.data,payload))return
+      throw new Error('Задача с этим идентификатором уже сохранена с другими данными. Закройте форму и проверьте список задач.')
+    }
     const compatiblePayload = withoutMissingTaskColumn(payload, result.error)
     if (!compatiblePayload) throw result.error
     payload = compatiblePayload

@@ -1,0 +1,17 @@
+name = "kvartocrm-ai"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+SUPABASE_URL = "https://flwsglkkarikekkopdbu.supabase.co"
+AI_ALLOWED_EMAILS = "denzotrail@gmail.com,togo1999rocker@gmail.com"
+AI_MODEL = "deepseek-flash"
+
+[[durable_objects.bindings]]
+name = "QUOTA"
+class_name = "AiQuota"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AiQuota"]

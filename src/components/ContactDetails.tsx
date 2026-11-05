@@ -1,3 +1,6 @@
+import ClientAssistant from './ClientAssistant'
+import WorkHistory from './WorkHistory'
+import NextStepForm from './NextStepForm'
 import BuyerSelections from './BuyerSelections'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -5,7 +8,6 @@ import { Pencil, Phone, PhoneCall, Star, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useClientRecords } from '../hooks/useClientRecords'
 import { usePropertyCatalog } from '../hooks/usePropertyCatalog'
-import { useCallActivities } from '../hooks/useCallActivities'
 import { useEvents } from '../hooks/useEvents'
 import NewEventForm from './NewEventForm'
 import { contactName, contactInitials, contactStatus } from '../lib/contactPresentation'
@@ -14,17 +16,16 @@ import OwnerForm from './OwnerForm'
 import BuyerForm from './BuyerForm'
 import QuickCallForm from './QuickCallForm'
 import Contact360Panel from './Contact360Panel'
-import ActivityTimeline from './ActivityTimeline'
 import EntityFilesPanel from './EntityFilesPanel'
 
 export default function ContactDetails({ client, clients, onDeleted }: { client: Client; clients: Client[]; onDeleted: () => void }) {
   const { user } = useAuth()
   const { toggleFavorite, removeClient, mutationPending } = useClientRecords(user?.id)
   const catalog = usePropertyCatalog(user?.id)
-  const callQuery = useCallActivities(user?.id)
   const eventQuery = useEvents(user?.id)
   const [editingEvent,setEditingEvent] = useState<Event | null>(null)
   const upcoming = (eventQuery.data || []).filter(event => !event.isCompleted && event.relatedClientId === client.id).sort((a,b) => `${a.eventDate} ${a.eventTime || ''}`.localeCompare(`${b.eventDate} ${b.eventTime || ''}`))
+  const [historyOpen,setHistoryOpen]=useState(false),[stepOpen,setStepOpen]=useState(false)
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
   const [calling, setCalling] = useState(false)
@@ -34,12 +35,15 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
   const buyer = client.type === 'buyer'
   const rent = roles.includes(buyer ? 'tenant' : 'landlord')
   const properties = (catalog.data?.properties || []).filter(property => property.ownerId === client.id || (catalog.data?.propertyOwners[property.id] || []).some(owner => owner.clientId === client.id))
-  const calls = (callQuery.data || []).filter(call => call.metadata?.client_id === client.id)
   const act = async (operation: () => Promise<unknown>) => {
     setError('')
     try { await operation() } catch { setError('Изменение не сохранено. Проверьте соединение и повторите.') }
   }
   return <div className="min-w-0 space-y-5">
+    <ClientAssistant client={client}/>
+    {historyOpen&&<WorkHistory clientId={client.id} onClose={()=>setHistoryOpen(false)}/>}
+    {stepOpen&&<NextStepForm context={{clientId:client.id}} onClose={()=>setStepOpen(false)}/>}
+    <div className="flex flex-wrap gap-2"><button onClick={()=>setHistoryOpen(true)} className="lumi-control rounded-xl px-4 py-2">Единая история</button><button onClick={()=>setStepOpen(true)} className="lumi-control rounded-xl px-4 py-2">Следующий шаг</button></div>
     <header className="flex items-start gap-3">
       <div className="lumi-accent-soft flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold">{contactInitials(client)}</div>
       <div className="min-w-0 flex-1"><h2 className="lumi-text break-words text-xl font-semibold">{contactName(client)}</h2><p className="lumi-muted mt-1 text-sm">{contactStatus(client.status)}{client.source ? ` · ${client.source}` : ''}</p></div>
@@ -63,7 +67,7 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
         <section><h3 className="lumi-text mb-2 text-sm font-semibold">Связанные объекты</h3>{catalog.isPending ? <p className="lumi-muted text-sm">Загрузка…</p> : catalog.error ? <p role="alert" className="text-sm text-red-400">Не удалось загрузить объекты.</p> : properties.length ? <div className="space-y-2">{properties.map(property => <Link key={property.id} to={`/properties/${property.id}`} className="lumi-control block rounded-xl p-3 text-sm"><span className="lumi-text block font-medium">{property.address}</span><span className="lumi-muted">{property.price ? `${property.price.toLocaleString('ru-RU')} ₽` : 'Цена не указана'}</span></Link>)}</div> : <p className="lumi-muted text-sm">Объектов пока нет.</p>}</section>
         {client.tags.length > 0 && <div className="flex flex-wrap gap-2">{client.tags.map(tag => <span key={tag} className="lumi-accent-soft rounded-full px-2 py-1 text-xs">{tag}</span>)}</div>}
       </div>}
-      {tab === 'history' && <div className="space-y-5"><section><h3 className="lumi-text mb-3 font-semibold">Звонки</h3>{callQuery.isPending ? <p className="lumi-muted text-sm">Загрузка…</p> : callQuery.error ? <p role="alert" className="text-sm text-red-400">Не удалось загрузить звонки.</p> : calls.length ? calls.map(call => <article key={call.id} className="lumi-border border-b py-3"><div className="flex flex-wrap justify-between gap-2 text-sm"><strong className="lumi-text">{call.metadata?.status || call.outcome || 'Звонок'}</strong><time className="lumi-muted">{call.occurred_at ? new Date(call.occurred_at).toLocaleString('ru-RU') : ''}</time></div><p className="lumi-muted mt-2 whitespace-pre-wrap text-sm">{call.notes}</p></article>) : <p className="lumi-muted text-sm">Запишите первый звонок из этой карточки.</p>}</section><ActivityTimeline clientId={client.id} /></div>}
+      {tab === 'history' && <WorkHistory embedded clientId={client.id} onClose={()=>undefined}/>}
       {tab === 'files' && <EntityFilesPanel clientId={client.id} title="Документы контакта" />}
       {tab === 'selections' && buyer && <BuyerSelections client={client}/>}
       {tab === 'connections' && <Contact360Panel client={client} clients={clients} />}
