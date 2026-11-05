@@ -1,3 +1,5 @@
+import {archiveContact} from '../lib/contacts'
+import {queryClient} from '../lib/queryClient'
 import ClientAssistant from './ClientAssistant'
 import WorkHistory from './WorkHistory'
 import NextStepForm from './NextStepForm'
@@ -30,6 +32,7 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
   const [editing, setEditing] = useState(false)
   const [calling, setCalling] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [archiving,setArchiving]=useState(false)
   const [error, setError] = useState('')
   const roles = client.roles || []
   const buyer = client.type === 'buyer'
@@ -52,7 +55,7 @@ export default function ContactDetails({ client, clients, onDeleted }: { client:
     <div className="flex flex-wrap items-center gap-2">
       <button onClick={() => setCalling(true)} className="lumi-gradient-button inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"><PhoneCall className="h-4 w-4" />Записать звонок</button>
       <button onClick={() => setEditing(true)} className="lumi-control inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm"><Pencil className="h-4 w-4" />Изменить</button>
-      <button aria-label="Переместить контакт в корзину" onClick={() => setConfirmDelete(true)} className="lumi-muted rounded-lg p-2.5 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
+      <button disabled={archiving} onClick={()=>void act(async()=>{setArchiving(true);try{await archiveContact(user!.id,client.id,client.status!=='archived');await queryClient.invalidateQueries();onDeleted()}finally{setArchiving(false)}})} className="lumi-control rounded-xl px-3 py-2.5 text-sm">{client.status==='archived'?'Вернуть из архива':'В архив'}</button><button aria-label="Переместить контакт в корзину" onClick={() => setConfirmDelete(true)} className="lumi-muted rounded-lg p-2.5 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
     </div>
     {confirmDelete && <div className="lumi-panel-muted space-y-3 rounded-xl border p-3"><p className="lumi-text text-sm">Переместить контакт в корзину? Его можно восстановить в течение 5 дней.</p><div className="flex gap-2"><button disabled={mutationPending} onClick={() => void act(async () => { await removeClient(client.id); onDeleted() })} className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">В корзину</button><button onClick={() => setConfirmDelete(false)} className="lumi-control rounded-lg px-3 py-2 text-sm">Оставить</button></div></div>}
     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}

@@ -46,7 +46,7 @@ export function buildWorkHistory(events: Row[], activities: Row[], tasks: Row[])
     const event = liveEvents.find(e => e.id === eventId)
     if (event) represented.add(eventId)
     entries.push({ id: `meeting-result:${row.id}`, kind: 'meeting', title: str(event?.title) || str(row.title) || 'Встреча',
-      ...(event?.event_date ? meetingDate(event) : historyDate(row.occurred_at)), dateNote: event?.event_date ? 'Дата встречи в календаре' : 'Дата записи итога', notes: [str(row.notes), event?.notes ? `Заметки встречи: ${str(event.notes)}` : ''].filter(Boolean).join('\n\n'),
+      ...(event?.event_date ? meetingDate(event) : historyDate(row.occurred_at)), ...(m.date_only?{time:''}:{}), dateNote: m.date_only?'Дата встречи, время не указано':event?.event_date ? 'Дата встречи в календаре' : 'Дата записи итога', notes: [str(row.notes), event?.notes ? `Заметки встречи: ${str(event.notes)}` : ''].filter(Boolean).join('\n\n'),
       outcome: str(row.outcome), reaction: str(m.reaction), next: str(m.next_contact_at) || str(row.due_at),
       clientId: str(row.client_id) || str(event?.related_client_id), propertyId: str(row.property_id) || str(event?.related_property_id), location: str(event?.location),
     })

@@ -56,7 +56,7 @@ export const rankPropertyBuyers = (property: Property, details: PropertyDetails,
   const clientById = new Map(clients.map(client => [client.id, client]))
   return requirements.flatMap(requirement => {
     const client = clientById.get(String(requirement.client_id))
-    if (!client) return []
+    if (!client || ['archived','closed','inactive'].includes(client.status || '')) return []
     const result = scoreBuyerRequirement(property, details, requirement)
     if (result.conflicts.includes('Другой тип сделки')) return []
     return [{ client, ...result }]

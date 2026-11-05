@@ -195,3 +195,8 @@ export const fetchContactSummaries = async (userId: string): Promise<ContactSumm
     isFavorite: client.isFavorite,
   }))
 }
+
+export async function archiveContact(userId: string, id: string, archived: boolean) {
+ const {data,error}=await supabase.from('clients').update({status:archived?'archived':'active',archived_at:archived?new Date().toISOString():null}).eq('id',id).eq('user_id',userId).is('deleted_at',null).select('id').single()
+ if(error||!data)throw error||new Error('Контакт не найден')
+}

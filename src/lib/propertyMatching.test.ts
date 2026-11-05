@@ -17,3 +17,9 @@ test('ranks and excludes requirements for another deal type', () => {
   assert.equal(matches.length, 1)
   assert.ok(matches[0].conflicts.includes('Цена вне бюджета'))
 })
+
+test('archived buyers are excluded while active buyers remain',()=>{
+ const requirements=[{client_id:'c1',purpose:'sale'}]
+ assert.equal(rankPropertyBuyers(property,{},requirements,[{...client,status:'archived'}]).length,0)
+ assert.equal(rankPropertyBuyers(property,{},requirements,[{...client,status:'active'}]).length,1)
+})

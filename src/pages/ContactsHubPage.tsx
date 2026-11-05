@@ -7,7 +7,7 @@ import ListFilters, { filterOptions } from '../components/ListFilters'
 import { matchesText, inDateRange, sortRecords } from '../lib/listFiltering'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarClock, ChevronRight, Mail, Plus, RefreshCw, Search, Star, Users } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useClientRecords } from '../hooks/useClientRecords'
 import { inferContactRoles } from '../lib/contactRoles'
@@ -46,7 +46,7 @@ const ContactsHubPage = () => {
   const [params, setParams] = useSearchParams()
   const addButtonRef = useRef<HTMLButtonElement>(null)
   const { data: clients = [], isPending: loading, error: loadError, refetch } = useClientRecords(user?.id)
-  const contacts = useMemo(() => clients.map(client => ({ ...client, roles: inferContactRoles(client as unknown as Record<string, unknown>), middleName: client.middleName || '', email: client.email || '' })), [clients])
+  const contacts = useMemo(() => clients.filter(client => client.status !== 'archived').map(client => ({ ...client, roles: inferContactRoles(client as unknown as Record<string, unknown>), middleName: client.middleName || '', email: client.email || '' })), [clients])
   const selected = clients.find(client => client.id === params.get('client'))
   const closeContact = () => setParams(current => { const next = new URLSearchParams(current); next.delete('client'); return next }, { replace: true })
   useListScroll(user?.id, 'contacts', !loading)
@@ -113,7 +113,7 @@ const ContactsHubPage = () => {
         </div>
       </section>
 
-      <ContactDuplicatesPanel clients={clients}/>
+      <Link to="/archive" className="lumi-accent-text inline-block text-sm">Архив контактов</Link><ContactDuplicatesPanel clients={clients.filter(c=>c.status!=='archived')}/>
       {filters.next && scheduledEvents.error && <p role="alert" className="text-red-400">Не удалось проверить расписание контактов.</p>}
       <ListFilters scope="contacts" onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => { setFilters({}); setQuery(''); setFilter('all') }} count={visibleContacts.length} total={contacts.length} defaultSort="name" defaultDirection="asc" sortOptions={[{value:'name',label:'Имя'},{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'next',label:'Следующий контакт'},{value:'status',label:'Статус'}]} fields={[
         {key:'status',label:'Статус',options:filterOptions(contacts.map(contact => contact.status)).map(option => ({...option,label:contactStatus(option.value)}))},

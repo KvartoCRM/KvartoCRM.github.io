@@ -18,7 +18,7 @@ export default function OwnerReports({onClose}:{onClose:()=>void}){
  const savedId=useRef(crypto.randomUUID())
  const reports=useQuery({queryKey:['owner-reports',user?.id],enabled:Boolean(user),queryFn:async()=>{const r=await fetchAllRows(()=>supabase.from('crm_activities').select('id,client_id,property_id,title,notes,metadata,created_at').eq('user_id',user!.id).is('deleted_at',null).eq('metadata->>kind','owner_report'));return r.data}})
  const properties=(catalog.data?.properties||[]).filter(p=>p.workStream!=='cold'&&['available','reserved'].includes(p.status))
- const property=properties.find(p=>p.id===propertyId),owners=(catalog.data?.propertyOwners[propertyId]||[]).map(o=>catalog.data?.clients.find(c=>c.id===o.clientId)).filter(c=>!!c)
+ const property=properties.find(p=>p.id===propertyId),owners=(catalog.data?.propertyOwners[propertyId]||[]).map(o=>catalog.data?.clients.find(c=>c.id===o.clientId)).filter(c=>!!c).filter(c=>c.status!=='archived')
  const owner=owners.find(c=>c.id===clientId)
  const records=(history.data||[]).filter(r=>r.propertyId===propertyId&&r.kind!=='note'&&r.date>=start&&r.date<end)
  const past=(reports.data||[]).filter(r=>r.property_id===propertyId&&r.client_id===clientId).sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)))

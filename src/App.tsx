@@ -1,3 +1,4 @@
+import MiaChat from './components/MiaChat'
 import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -70,7 +71,7 @@ function App() {
               <Route path="/p/:slug" element={<PublicPropertyPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>
-                  <WelcomeModal />
+                  <WelcomeModal /><MiaChat key="mia" />
                   <Dashboard>
                     <Routes>
                       <Route path="/" element={null} />
