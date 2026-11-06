@@ -1,3 +1,4 @@
+import {stopCallFollowups} from './callFollowups'
 import { callEventKey, callFromInput, encodeCallEvent, mapCallActivityRow, mapCallEventRow, type CallActivityInput, type WorkCall } from './callActivityMapping'
 import { fetchAllRows } from './pagination'
 import { supabase } from './supabase'
@@ -54,6 +55,7 @@ export const saveCallActivity = async (userId: string, input: CallActivityInput,
     ? await supabase.from('events').update(payload).eq('id', callId).eq('user_id', userId)
     : await supabase.from('events').insert({ ...payload, id })
   if (result.error) throw result.error
+  await stopCallFollowups(userId,input.metadata?.client_id,input.metadata?.status||input.outcome||undefined,occurred.toISOString())
   return { id, input }
 }
 

@@ -17,3 +17,13 @@ test('provider errors and malformed JSON do not reveal credentials',async()=>{fo
 test('daily quota is transactional and stops at twenty',async()=>{let saved;const storage={get:async()=>saved,put:async(k,v)=>{saved=structuredClone(v)}};const quota=new AiQuota({storage:{transaction:fn=>fn(storage)}});for(let i=0;i<21;i++){const r=await quota.fetch(new Request('https://quota',{method:'POST',body:JSON.stringify({user:'u'})}));assert.equal(r.status,i<20?200:429)}})
 
 test('Cloudflare-compatible manual redirects never forward provider credentials',async()=>{let seen=0;const r=await handleAi(req(),env,async(url,options)=>{assert.equal(options.redirect,'manual');seen++;if(String(url).includes('/auth/'))return provider(url);return new Response('',{status:302,headers:{Location:'https://untrusted.test'}})});assert.equal(r.status,502);assert.equal(seen,2)})
+
+test('cloud route derives account from verified token, never body tenant, and uses no provider quota',async()=>{let account,quota=0;const e={...env,QUOTA:{idFromName:()=>{quota++;throw Error('quota must not be used')}},MIA:{idFromName:n=>{account=n;return n},get:()=>({fetch:async()=>Response.json({messages:[]})})}};const request=new Request('https://ai.test/mia-cloud',{method:'POST',headers:{origin:'https://kvartocrm.github.io',authorization:'Bearer fixture','Content-Type':'application/json'},body:JSON.stringify({op:'read',userId:'victim'})});const response=await handleAi(request,e,provider);assert.equal(response.status,200);assert.equal(account,'u');assert.equal(quota,0)})
+
+
+test('new verified accounts enabled explicitly; unconfirmed accounts still rejected',async()=>{
+ const e={...env,AI_ALL_VERIFIED_USERS:'true'}
+ const f=async url=>String(url).includes('/auth/')?Response.json({id:'new-user',email:'new@example.test',email_confirmed_at:'2026-01-01'}):provider(url)
+ assert.equal((await handleAi(req(),e,f)).status,200)
+ assert.equal((await handleAi(req(),e,async()=>Response.json({id:'new-user',email:'new@example.test'}))).status,403)
+})

@@ -4,6 +4,7 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 
 [vars]
+AI_ALL_VERIFIED_USERS = "true"
 SUPABASE_URL = "https://flwsglkkarikekkopdbu.supabase.co"
 AI_ALLOWED_EMAILS = "denzotrail@gmail.com,togo1999rocker@gmail.com"
 AI_MODEL = "deepseek-flash"
@@ -15,3 +16,11 @@ class_name = "AiQuota"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["AiQuota"]
+
+[[durable_objects.bindings]]
+name = "MIA"
+class_name = "MiaAccount"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["MiaAccount"]

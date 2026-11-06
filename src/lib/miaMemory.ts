@@ -16,7 +16,8 @@ export function fitMiaContext(source:Record<string,unknown>):string{
  const context=structuredClone(source)
  let result=JSON.stringify(context)
  for(const key of ['conversation','result','properties','contacts']){
-  const entries=context[key]
+  const value=context[key]
+  const entries=key==='result'&&value&&typeof value==='object'&&!Array.isArray(value)?(value as Record<string,unknown>).rows:value
   if(!Array.isArray(entries))continue
   while(result.length>15000&&entries.length>(key==='conversation'?1:0)){
    if(key==='conversation')entries.shift();else entries.pop()

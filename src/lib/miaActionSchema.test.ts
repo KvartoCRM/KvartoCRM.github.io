@@ -1,0 +1,8 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {validateMiaPlan,date,time} from './miaActionSchema.ts'
+const plan=(command:unknown)=>({type:'commands',commands:[command]})
+test('rejects arbitrary tables, tenant fields and unsupported updates',()=>{for(const value of [plan({operation:'update',entity:'profiles',id:'a',fields:{}}),plan({operation:'create',entity:'contact',fields:{user_id:'other'}}),plan({operation:'update',entity:'contact',id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',fields:{roles:['admin']}})])assert.throws(()=>validateMiaPlan(value))})
+test('rejects wrong money types, negatives, forward references and supplied create IDs',()=>{for(const fields of [{price:-1},{price:'100'},{ownerId:'@1'}])assert.throws(()=>validateMiaPlan(plan({operation:'create',entity:'property',fields})));assert.throws(()=>validateMiaPlan(plan({operation:'create',entity:'task',id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',fields:{title:'x'}})))})
+test('permits linked contact then property, but not database control columns',()=>{assert.equal(validateMiaPlan({type:'commands',commands:[{operation:'create',entity:'contact',fields:{type:'seller',firstName:'Валерия',phone:'+70000000000'}},{operation:'create',entity:'property',fields:{ownerId:'@0',address:'Тестовая 1',listingType:'sale'}}]}).commands.length,2);assert.throws(()=>validateMiaPlan(plan({operation:'deal',entity:'deal',id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',fields:{accounting:{user_id:'other'}}})))})
+test('calendar validation rejects impossible dates and times',()=>{assert.throws(()=>date('2026-02-30'));assert.throws(()=>time('25:30'));assert.equal(date('2026-11-09'),'2026-11-09')})

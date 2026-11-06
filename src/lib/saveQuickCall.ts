@@ -1,3 +1,4 @@
+import {stopCallFollowups} from './callFollowups'
 import { supabase } from './supabase'
 import { quickCallRows, type QuickCallDraft } from './quickCall'
 
@@ -14,6 +15,7 @@ export async function saveQuickCall(userId: string, draft: QuickCallDraft, relat
     return saved && !saved.deleted_at && Object.entries(row).every(([key, value]) => key === 'event_time' && value ? String(saved[key]).slice(0,5) === value : saved[key] === value)
   })
   if (!exact) throw new Error('Эта запись уже сохранена с другими данными. Проверьте журнал и календарь перед новой записью.')
+  await stopCallFollowups(userId,draft.clientId,draft.status,new Date(`${draft.date}T${draft.time}`).toISOString())
   if (completedEventId) {
     const completed = await supabase.from('events').update({ is_completed: true }).eq('id', completedEventId).eq('user_id', userId).select('id').maybeSingle()
     if (completed.error || !completed.data) throw new Error('Итог и следующий звонок сохранены. Не удалось закрыть исходное дело. Повторите сохранение с теми же данными.')
