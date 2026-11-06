@@ -8,6 +8,7 @@ export type TaskUpsertInput = {
   description: string
   status: TaskStatus
   priority: Priority
+  completedAt?: string | null
   dueDate?: string
   dueTime?: string
   smartCriteria: TaskSmartCriteria

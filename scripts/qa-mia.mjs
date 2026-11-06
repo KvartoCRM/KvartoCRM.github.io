@@ -33,16 +33,16 @@ try{
  if(u.hostname==='127.0.0.1')return route.continue();return route.abort()
  })
  await page.goto('http://127.0.0.1:3000/tmp/qa-mia.html')
- await page.getByRole('button',{name:'Мия · помощница'}).click()
+ assert.equal(await page.getByRole('button',{name:'Открыть чат с Мией'}).innerText(),'');await page.getByRole('button',{name:'Открыть чат с Мией'}).click()
  await page.getByText('Здравствуйте, Денис!',{exact:false}).waitFor()
  const send=async text=>{await page.getByLabel('Сообщение Мии').fill(text);await page.getByRole('button',{name:'Отправить сообщение',exact:true}).click()}
- await send('Провёл показ.');await page.getByText('Подготовила запись.',{exact:true}).waitFor();assert.equal(writes,0)
+ await send('Запомни: отвечай коротко');await page.getByText('Запомнила на этом устройстве.',{exact:false}).waitFor();assert.equal(requests,0);await page.getByRole('button',{name:'Память',exact:true}).click();assert.equal(await page.getByLabel('Память Мии').inputValue(),'отвечай коротко');await page.getByRole('button',{name:'Память',exact:true}).click();await send('Провёл показ.');await page.getByText('Подготовила запись.',{exact:true}).waitFor();assert.equal(writes,0)
  await send('Анна смотрела Ленина, 10. Понравилась, думает. Позвонить в ближайший понедельник.')
  await page.getByRole('button',{name:'Повторить сохранение'}).waitFor();assert.equal(tables.crm_activities.length,1);assert.equal(tables.tasks.length,0)
- await page.reload();await page.getByRole('button',{name:'Мия · помощница'}).click();await page.getByRole('button',{name:'Повторить сохранение'}).click()
+ await page.reload();await page.getByRole('button',{name:'Открыть чат с Мией'}).click();await page.getByRole('button',{name:'Повторить сохранение'}).click()
  await page.getByText('Задача «Уточнить решение» создана',{exact:false}).waitFor();assert.equal(tables.crm_activities.length,1);assert.equal(tables.tasks.length,1)
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:900});await page.getByRole('button',{name:'Изменить размер чата'}).click();const panel=page.getByRole('region',{name:'Чат с Мией'});assert(await panel.evaluate(n=>n.scrollWidth<=n.clientWidth));await page.screenshot({path:`tmp/qa-mia-${width}.png`})}
- await page.getByRole('button',{name:'Закрыть чат'}).click();await page.getByRole('button',{name:'Мия · помощница'}).click();assert(await page.getByRole('log').evaluate(n=>n.scrollHeight-n.scrollTop-n.clientHeight<3))
+ await page.getByRole('button',{name:'Закрыть чат'}).click();await page.getByRole('button',{name:'Открыть чат с Мией'}).click();assert(await page.getByRole('log').evaluate(n=>n.scrollHeight-n.scrollTop-n.clientHeight<3))
  await send('Открой отчёты собственникам');await page.getByRole('dialog',{name:'Отчёты собственникам'}).waitFor()
  assert.deepEqual(errors,[]);console.log(JSON.stringify({ok:true,writes,requests,widths:[320,390,768,1440],retryAcrossReload:true}))
 }catch(e){const page=browser.contexts()[0]?.pages()[0];console.log(errors);if(page){console.log(await page.locator('body').innerText());await page.screenshot({path:'tmp/qa-mia-failure.png'})}throw e}finally{await browser.close()}

@@ -32,7 +32,6 @@ import { preloadCoreRoutes, preloadRoute } from '../lib/routeLoaders'
 import { desktopNavigationGroups, isNavigationItemActive } from '../lib/navigation'
 import { useCrmOverview } from '../hooks/useCrmOverview'
 import BrandLogo from '../components/BrandLogo'
-import ThemeSwitcher from '../components/ThemeSwitcher'
 import InstallAppButton from '../components/InstallAppButton'
 import NotificationCenter from '../components/NotificationCenter'
 import OfflineSyncStatus from '../components/OfflineSyncStatus'
@@ -354,7 +353,7 @@ const Dashboard = ({ children }: DashboardProps) => {
             <WorkspaceRefreshButton />
             <span className="hidden 2xl:block"><InstallAppButton compact /></span>
             <button type="button" onClick={() => void printCurrentPage()} className="lumi-control hidden rounded-xl p-2.5 2xl:inline-flex" title="Сохранить страницу как PDF"><FileDown className="h-5 w-5" /></button>
-            <span className="hidden 2xl:block"><ThemeSwitcher /></span>
+
             <NotificationCenter />
             <ProfileMenu />
           </div>

@@ -19,7 +19,6 @@ const PropertyDetailPage = lazy(routeLoaders.propertyDetail)
 const ContactsHubPage = lazy(routeLoaders.contacts)
 const WorkHubPage = lazy(routeLoaders.work)
 const CalendarPage = lazy(routeLoaders.calendar)
-const TasksPage = lazy(routeLoaders.tasks)
 const DealsPage = lazy(routeLoaders.deals)
 const DocumentsPage = lazy(routeLoaders.documents)
 const GalleryPage = lazy(routeLoaders.gallery)
@@ -86,7 +85,7 @@ function App() {
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/calls" element={<CallsPage />} />
                       <Route path="/plan" element={<MonthlyPlanPage />} />
-                      <Route path="/tasks" element={<TasksPage />} />
+                      <Route path="/tasks" element={<Navigate to="/work" replace />} />
                       <Route path="/deals" element={<DealsPage />} />
                       <Route path="/documents" element={<DocumentsPage />} />
                       <Route path="/gallery" element={<GalleryPage />} />

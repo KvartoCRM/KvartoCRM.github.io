@@ -1,11 +1,10 @@
 import TodayWorkspace from '../components/TodayWorkspace'
 import { lazy, Suspense } from 'react'
-import { CalendarDays, CheckSquare, Clock3, Phone } from 'lucide-react'
+import { CalendarDays, Clock3, Phone } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { routeLoaders } from '../lib/routeLoaders'
 
 const CalendarPage = lazy(routeLoaders.calendar)
-const TasksPage = lazy(routeLoaders.tasks)
 const CallsPage = lazy(routeLoaders.calls)
 const MonthlyPlanPage = lazy(routeLoaders.plan)
 
@@ -14,7 +13,6 @@ type WorkView = 'today' | 'calendar' | 'tasks' | 'calls' | 'plan'
 const workViews: Array<{ id: WorkView; label: string; icon: typeof Clock3 }> = [
   { id: 'today', label: 'Сегодня', icon: Clock3 },
   { id: 'calendar', label: 'Календарь', icon: CalendarDays },
-  { id: 'tasks', label: 'Задачи', icon: CheckSquare },
   { id: 'calls', label: 'Звонки', icon: Phone },
   { id: 'plan', label: 'План', icon: CalendarDays },
 ]
@@ -26,7 +24,6 @@ const WorkHubPage = () => {
 
   const content = activeView === 'today' ? <TodayWorkspace />
     : activeView === 'calendar' ? <CalendarPage />
-      : activeView === 'tasks' ? <TasksPage />
         : activeView === 'calls' ? <CallsPage />
           : <MonthlyPlanPage />
 

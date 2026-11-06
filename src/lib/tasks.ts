@@ -65,7 +65,7 @@ export const saveTask = async (userId: string, input: TaskUpsertInput, taskId?: 
     parent_task_id: input.parentTaskId || null,
     subtasks: input.subtasks || [],
     is_completed: input.status === 'done',
-    completed_at: input.status === 'done' ? new Date().toISOString() : null,
+    completed_at: input.status === 'done' ? (input.completedAt!==undefined?input.completedAt:new Date().toISOString()) : null,
   }
   await writeTask(userId, id, payload, taskId)
   await confirmTask(userId, id)
