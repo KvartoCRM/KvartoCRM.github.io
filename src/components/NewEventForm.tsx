@@ -271,7 +271,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
           />
         </div>
 
-        <div className="lumi-panel sticky bottom-0 flex gap-3 border-t py-3">
+        <div className="lumi-panel flex flex-wrap gap-3 border-t pt-4">
           <button
             type="button"
             onClick={close}

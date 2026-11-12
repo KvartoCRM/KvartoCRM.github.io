@@ -113,7 +113,7 @@ const ContactsHubPage = () => {
         </div>
       </section>
 
-      <Link to="/archive" className="lumi-accent-text inline-block text-sm">Архив контактов</Link><ContactDuplicatesPanel clients={clients.filter(c=>c.status!=='archived')}/>
+      <div className="flex flex-wrap items-center gap-3"><Link to="/archive" className="lumi-accent-text text-sm">Архив контактов</Link><ContactDuplicatesPanel clients={clients.filter(c=>c.status!=='archived')}/></div>
       {filters.next && scheduledEvents.error && <p role="alert" className="text-red-400">Не удалось проверить расписание контактов.</p>}
       <ListFilters scope="contacts" onApply={setFilters} values={filters} onChange={(key, value) => setFilters(current => ({ ...current, [key]: value }))} onReset={() => { setFilters({}); setQuery(''); setFilter('all') }} count={visibleContacts.length} total={contacts.length} defaultSort="name" defaultDirection="asc" sortOptions={[{value:'name',label:'Имя'},{value:'created',label:'Дата создания'},{value:'updated',label:'Дата изменения'},{value:'next',label:'Следующий контакт'},{value:'status',label:'Статус'}]} fields={[
         {key:'status',label:'Статус',options:filterOptions(contacts.map(contact => contact.status)).map(option => ({...option,label:contactStatus(option.value)}))},

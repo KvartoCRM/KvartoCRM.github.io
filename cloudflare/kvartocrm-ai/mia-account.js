@@ -10,9 +10,17 @@ export class MiaAccount {
     const before=Number.isInteger(body.before)?body.before:meta.sequence+1
     const rows=await storage.list({prefix:'message:',reverse:true,limit:101,end:'message:'+String(before).padStart(12,'0')})
     const messages=[...rows.values()].slice(0,100).reverse()
-    return reply({...meta,messages,hasOlder:rows.size>100})
+    const facts=await storage.list({prefix:'fact:',end:'fact:~',reverse:true});return reply({...meta,facts:[...facts.values()].sort((a,b)=>a.createdAt.localeCompare(b.createdAt)),messages,hasOlder:rows.size>100})
    }
-   if(body.op==='claim'){
+   if(body.op==='remember'){
+    if(!meta.memoryEnabled)return reply({error:'Память отключена.'},409)
+    const source=await storage.get('id:'+body.messageId)
+    if(!source||source.role!=='user')return reply({error:'Нет исходного сообщения пользователя.'},400)
+    await storage.put('fact:'+source.id,{id:source.id,text:source.text,createdAt:source.createdAt})
+   }else if(body.op==='forget'){
+    if(typeof body.id!=='string'||!/^[a-zA-Z0-9-]{1,100}$/.test(body.id))return reply({error:'Неверная запись памяти.'},400)
+    await storage.delete('fact:'+body.id)
+   }else if(body.op==='claim'){
     if(typeof body.token!=='string'||body.token.length>100)return reply({error:'Неверный запрос.'},400)
     if(meta.lease&&meta.lease.until>Date.now()&&meta.lease.token!==body.token)return reply({error:'Мия обрабатывает просьбу на другом устройстве. Дождитесь ответа.'},409)
     meta.lease={token:body.token,until:Date.now()+300000}

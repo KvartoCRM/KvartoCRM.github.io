@@ -14,7 +14,8 @@ export async function miaLookup(userId:string,lookup:Lookup){
  const during=(value:unknown)=>{if(typeof value!=='string')return false;const date=value.includes('T')&&Number.isFinite(Date.parse(value))?calendarParts(new Date(value)).date:value.slice(0,10);return (!lookup.from||date>=lookup.from)&&(!lookup.to||date<=lookup.to)}
  const related=(r:Row)=>!lookup.clientId||r.client_id===lookup.clientId||r.related_client_id===lookup.clientId||(r.smart_criteria as Row)?.clientId===lookup.clientId
  let rows:Row[]=[]
- if(lookup.entity==='contacts')rows=(await read('clients')).filter(r=>!r.merged_into&&matches([r.first_name,r.last_name,r.middle_name,r.phone].join(' '))).map(r=>({id:r.id,name:[r.first_name,r.last_name,r.middle_name].filter(Boolean).join(' '),role:r.type,status:r.status,phone:r.phone,notes:r.contact_comment||r.description}))
+ if(lookup.entity==='owners')rows=(await miaOwnerOverview(userId)).filter(r=>matches(JSON.stringify(r)))
+ else if(lookup.entity==='contacts')rows=(await read('clients')).filter(r=>!r.merged_into&&matches([r.first_name,r.last_name,r.middle_name,r.phone].join(' '))).map(r=>({id:r.id,name:[r.first_name,r.last_name,r.middle_name].filter(Boolean).join(' '),role:r.type,status:r.status,phone:r.phone,notes:r.contact_comment||r.description}))
  else if(lookup.entity==='properties')rows=(await read('properties')).filter(r=>matches(String(r.address))).map(r=>({id:r.id,address:r.address,status:r.status,ownerId:r.owner_id,price:r.price,listingType:r.listing_type,workStream:r.work_stream}))
  else if(lookup.entity==='deals')rows=(await fetchDeals(userId)).filter(r=>(!lookup.propertyId||r.propertyId===lookup.propertyId)&&(!lookup.clientId||[...(r.ownerIds||[]),...(r.buyerIds||[])].includes(lookup.clientId))&&matches(JSON.stringify(r))) as unknown as Row[]
  else if(lookup.entity==='tasks')rows=(await read('tasks')).filter(r=>related(r)&&(!(lookup.from||lookup.to)||during(r.due_date))&&(!lookup.propertyId||(r.smart_criteria as Row)?.propertyId===lookup.propertyId)&&matches(String(r.title)+' '+String(r.description))).map(r=>({id:r.id,title:r.title,notes:r.description,date:r.due_date,time:r.due_time,status:r.status,priority:r.priority}))
@@ -35,4 +36,15 @@ export async function miaLookup(userId:string,lookup:Lookup){
  }else throw new Error('Этот поиск пока не поддерживается.')
  const offset=Number.isInteger(lookup.offset)&&Number(lookup.offset)>=0?Number(lookup.offset):0
  return {total:rows.length,offset,hasMore:rows.length>offset+20,rows:rows.slice(offset,offset+20)}
+}
+
+export async function miaOwnerOverview(userId:string){
+ const read=async(table:string)=>(await fetchAllRows(()=>supabase.from(table).select('*').eq('user_id',userId).is('deleted_at',null).setHeader('x-lumicrm-network-only','true'))).data as Row[]
+ const [clients,properties,deals,activities]=await Promise.all(['clients','properties','deals','crm_activities'].map(read))
+ const ownership=(await fetchAllRows(()=>supabase.from('property_owners').select('property_id,client_id').eq('user_id',userId).setHeader('x-lumicrm-network-only','true'))).data
+ return clients.filter(c=>!c.merged_into&&(c.type==='seller'||(Array.isArray(c.roles)&&c.roles.includes('seller')))).map(c=>{
+  const owned=properties.filter(p=>p.owner_id===c.id||ownership.some(o=>o.client_id===c.id&&o.property_id===p.id))
+  const closed=deals.filter(d=>d.status==='closed'&&(d.owner_id===c.id||owned.some(p=>p.id===d.property_id)))
+  return {id:c.id,name:[c.first_name,c.last_name,c.middle_name].filter(Boolean).join(' '),status:c.status,notes:[c.contact_comment,c.description].filter(Boolean).join(' '),lastContact:c.last_contact_date,properties:owned.map(p=>({id:p.id,address:p.address,status:p.status,workStream:p.work_stream,notes:p.description})),closedDeals:closed.map(d=>({id:d.id,propertyId:d.property_id,status:d.status})),history:activities.filter(a=>a.client_id===c.id).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,5).map(a=>({date:a.occurred_at,notes:a.notes,title:a.title}))}
+ })
 }
