@@ -18,3 +18,7 @@ test('learned facts require own user message and persist across devices, can be 
  await a({op:'forget',id:'fact-source'});assert.equal((await a({op:'read'})).data.facts.length,0)
  await a({op:'memory',revision:0,preferences:'',memoryEnabled:false});assert.equal((await a({op:'remember',messageId:'fact-source'})).status,409)
 })
+
+test('facts can be retired across devices and retries cannot reactivate them',async()=>{
+ const a=account();await a({op:'append',id:'source',role:'user',text:'Квартира продана'});await a({op:'remember',messageId:'source',references:[{entity:'contact',id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'}]});await a({op:'retire',id:'source',retired:true});await a({op:'remember',messageId:'source'});const fact=(await a({op:'read'})).data.facts[0];assert.equal(fact.retired,true);assert.equal(fact.references[0].entity,'contact');await a({op:'retire',id:'source',retired:false});assert.equal((await a({op:'read'})).data.facts[0].retired,false)
+})

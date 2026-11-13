@@ -1,3 +1,5 @@
+import {archiveWithReason} from './archiveWithReason'
+import type {ArchiveReason} from './archiveReason'
 import {stopCallFollowups} from './callFollowups'
 import {supabase} from './supabase'
 import {saveContact} from './contacts'
@@ -27,6 +29,7 @@ export async function executeMiaCommand(userId:string,command:MiaCommand,operati
   if(c.operation==='trash')return patch(userId,table,id,{deleted_at:new Date().toISOString()})
   if(c.operation==='restore'&&row.deleted_at)return patch(userId,table,id,{deleted_at:null})
   if(!['clients','properties'].includes(table))throw new Error('Архив доступен контактам и объектам.')
+  if(c.operation==='archive'){const savedReason=await supabase.from('crm_activities').select('occurred_at').eq('id',operationId).eq('user_id',userId).maybeSingle();if(savedReason.error)throw savedReason.error;const receipt=savedReason.data;await archiveWithReason(userId,c.entity as 'contact'|'property',id,{reason:f.reason as ArchiveReason['reason'],note:String(f.note||''),resumeDate:String(f.resumeDate||'')},{id:operationId,at:String(receipt?.occurred_at||new Date().toISOString())});return id}
   return patch(userId,table,id,{status:c.operation==='archive'?'archived':table==='clients'?'active':'available',archived_at:c.operation==='archive'?new Date().toISOString():null})
  }
  if(c.operation==='update'){

@@ -45,7 +45,7 @@ export async function handleAi(request,env,fetcher=fetch){
  if(data.choices?.[0]?.finish_reason!=='stop'||!validateOutput(output))return reply({error:'Ответ ИИ не прошёл проверку. Повторите запрос.'},502)
  if(body.mode==='description'&&!validDescription(output.description))return reply({error:'ИИ не соблюл формат объявления или длину заголовков. Повторите запрос.'},502)
  const a=output.action;const action=body.mode==='note'&&a&&['task','call','meeting'].includes(a.kind)&&['title','date','time','notes'].every(k=>typeof a[k]==='string')?{kind:a.kind,title:a.title.slice(0,300),date:/^\d{4}-\d{2}-\d{2}$/.test(a.date)?a.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)?a.time:'',notes:a.notes.slice(0,5000)}:null
- return reply({text:output.text,warnings:output.warnings,action,...(body.mode==='mia'?{mia:output.mia||null,remember:output.remember===true}:{}),...(body.mode==='description'?{description:output.description}:{}),usage:data.usage?.total_tokens||0})
+ return reply({text:output.text,warnings:output.warnings,action,...(body.mode==='mia'?{mia:output.mia||null,remember:output.remember===true,memoryTargets:Array.isArray(output.memoryTargets)?output.memoryTargets.filter(t=>t&&['contact','property'].includes(t.entity)&&typeof t.id==='string'&&/^[a-f0-9-]{36}$/i.test(t.id)).slice(0,10):[]}:{}),...(body.mode==='description'?{description:output.description}:{}),usage:data.usage?.total_tokens||0})
  }catch{return reply({error:'Не удалось получить ответ. Проверьте соединение и повторите.'},502)}
 }
 export class AiQuota {

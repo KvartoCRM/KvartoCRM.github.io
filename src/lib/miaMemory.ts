@@ -2,7 +2,7 @@ import type {Task} from '../types/index.ts'
 import {calendarParts} from './scheduling.ts'
 export function rememberInstruction(text:string):string|null {
  const match=text.trim().match(/^запомни\s*[: ,]\s*([\s\S]+)$/i)
- return match?match[1].trim().slice(0,1000):null
+ return match?match[1].trim():null
 }
 export function workHabits(tasks:Task[],today:string){
  const completed=tasks.filter(t=>t.isCompleted||t.status==='done')
@@ -15,7 +15,7 @@ export function workHabits(tasks:Task[],today:string){
 export function fitMiaContext(source:Record<string,unknown>,budget=15000):string{
  const context=structuredClone(source)
  let result=JSON.stringify(context)
- for(const key of ['conversation','result','properties','contacts','owners']){
+ for(const key of ['conversation','result','properties','contacts','owners','evidence']){
   const value=context[key]
   const entries=key==='result'&&value&&typeof value==='object'&&!Array.isArray(value)?(value as Record<string,unknown>).rows:value
   if(!Array.isArray(entries))continue

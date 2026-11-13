@@ -1,3 +1,4 @@
+import ArchiveReasonDialog from '../components/ArchiveReasonDialog'
 import { useEvents } from '../hooks/useEvents'
 import { useListScroll } from '../hooks/useListScroll'
 import { useListState } from '../hooks/useListState'
@@ -14,7 +15,7 @@ import { usePropertyCatalog } from '../hooks/usePropertyCatalog'
 const PropertiesPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { data, isPending: loading, error: queryError, refetch, toggleFavorite: toggleFavoriteRecord, archiveProperty: archivePropertyRecord, removeProperty } = usePropertyCatalog(user?.id)
+  const { data, isPending: loading, error: queryError, refetch, toggleFavorite: toggleFavoriteRecord, removeProperty } = usePropertyCatalog(user?.id)
   const properties = data?.properties || []
   const clients = data?.clients || []
   useListScroll(user?.id, 'properties', !loading)
@@ -25,6 +26,7 @@ const PropertiesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProperty, setEditingProperty] = useState<Property | null>(null)
   const [actionError, setActionError] = useState('')
+  const [archiveId,setArchiveId]=useState<string|null>(null)
   const workStream = filters.$stream === 'cold' ? 'cold' : 'active'
   const setWorkStream = (value: 'active' | 'cold') => setFilters(current => ({...current,$stream:value}))
   const loadError = queryError instanceof Error ? queryError.message : queryError ? 'Не удалось загрузить объекты из облака.' : ''
@@ -67,15 +69,6 @@ const PropertiesPage = () => {
     }
   }
 
-  const archiveProperty = async (propertyId: string) => {
-    setActionError('')
-    try {
-      await archivePropertyRecord(propertyId)
-    } catch {
-      setActionError('Не удалось переместить объект в архив.')
-    }
-  }
-
   const deleteProperty = async (propertyId: string) => {
     try {
       await removeProperty(propertyId)
@@ -84,6 +77,7 @@ const PropertiesPage = () => {
 
   return (
     <div className="space-y-6">
+      {archiveId&&user&&<ArchiveReasonDialog userId={user.id} entity="property" id={archiveId} onClose={()=>setArchiveId(null)} onSaved={()=>setArchiveId(null)}/>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Объекты</h1>
         <button
@@ -187,7 +181,7 @@ const PropertiesPage = () => {
                     title="Переместить в архив"
                     onClick={(e) => {
                       e.stopPropagation()
-                      void archiveProperty(prop.id)
+                      setArchiveId(prop.id)
                     }}
                     className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
                   >

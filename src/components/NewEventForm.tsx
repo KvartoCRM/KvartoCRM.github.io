@@ -81,7 +81,8 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
   try { if (date && time) start = zonedInstant(date,time,zone) } catch { /* Validated before saving. */ }
   const conflicts = start ? conflictsFor(events,start,duration,editData?.id) : []
   const dirty = zone !== (editData?.timeZone || DEFAULT_ZONE) || eventType !== (editData?.type || defaultType) || title !== (editData?.title || '') || notes !== (editData?.notes || '') || date !== (editData?.eventDate || initialDate) || time !== (editData?.eventTime || initialTime) || location !== (editData?.location || '') || relatedClientId !== (editData?.relatedClientId || '') || relatedPropertyId !== (editData?.relatedPropertyId || '') || duration !== (editData?.durationMinutes || (defaultType === 'call' ? 15 : 60))
-  const close = () => { if (!saving && (!dirty || window.confirm('Изменения не сохранены. Закрыть форму и отказаться от них?'))) onClose() }
+  const [confirmClose,setConfirmClose]=useState(false)
+  const close = () => { if(!saving){if(dirty)setConfirmClose(true);else onClose()} }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -115,6 +116,7 @@ const NewEventForm = ({ isOpen, onClose, defaultType = 'meeting', editData = nul
 
   return (
     <Modal isOpen={isOpen} onClose={close} title={editData ? 'Редактировать событие' : 'Новое событие'}>
+      {confirmClose&&<div role="alert" className="lumi-panel-muted mb-4 space-y-3 rounded-xl border p-3"><p>Изменения не сохранены. Закрыть форму?</p><div className="flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={onClose} className="text-red-400">Закрыть без сохранения</button><button type="button" onClick={()=>setConfirmClose(false)} className="lumi-control rounded-lg p-2">Продолжить редактирование</button></div></div>}
       <form onSubmit={handleSubmit} className="space-y-5">
         <fieldset disabled={saving} className="space-y-5">
         {saveError && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{saveError}</div>}

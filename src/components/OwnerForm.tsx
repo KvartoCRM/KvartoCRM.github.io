@@ -54,6 +54,7 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
   const { user } = useAuth()
   const role: ContactRole = mode === 'rent' ? 'landlord' : 'seller'
   const personLabel = mode === 'rent' ? 'арендодателя' : 'собственника'
+  const [saveError,setSaveError]=useState('')
   const [formData, setFormData] = useState<OwnerFormData>(emptyForm)
   const [newTag, setNewTag] = useState('')
   const [propertyId, setPropertyId] = useState('')
@@ -98,7 +99,7 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();setSaveError('')
     if (!user) return
 
     try {
@@ -128,7 +129,7 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
       onClose()
     } catch (error) {
       console.error('Owner save failed:', error)
-      alert(`Не удалось сохранить ${personLabel}: ${getErrorMessage(error, 'проверьте подключение и повторите')}`)
+      setSaveError(`Не удалось сохранить ${personLabel}: ${getErrorMessage(error, 'проверьте подключение и повторите')}`)
     }
   }
 
@@ -142,6 +143,7 @@ const OwnerForm = ({ isOpen, onClose, owner, mode = 'sale' }: OwnerFormProps) =>
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={owner ? `Редактировать ${personLabel}` : mode === 'rent' ? 'Новый арендодатель' : 'Новый собственник'}>
       <form onSubmit={handleSubmit} className="space-y-7">
+        {saveError&&<p role="alert" className="rounded-xl border border-red-500/30 p-3 text-sm text-red-400">{saveError}</p>}
 <DuplicateContactWarning phone={formData.phone} exceptId={owner?.id}/>
         <section className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
           <div className="mb-5 flex items-center gap-3">

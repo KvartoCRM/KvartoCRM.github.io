@@ -59,6 +59,7 @@ const numbersFromList = (value: string) => value.split(/[,;\s]+/).map(Number).fi
 
 const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFormProps) => {
   const { user } = useAuth()
+  const [saveError,setSaveError]=useState('')
   const [section, setSection] = useState('contact')
   const [form, setForm] = useState<FormData>(emptyForm(defaultPurpose))
   const [newLocation, setNewLocation] = useState('')
@@ -114,7 +115,7 @@ const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFor
   }, [buyer, isOpen, requirementQuery.data])
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault(); if (!user) return
+    event.preventDefault();setSaveError(''); if (!user) return
     try {
       const role: ContactRole = form.purpose === 'rent' ? 'tenant' : 'buyer'
       const roles: ContactRole[] = Array.from(new Set<ContactRole>([...(buyer?.roles || []).filter((item): item is ContactRole => ['buyer', 'seller', 'landlord', 'tenant'].includes(item)), role]))
@@ -140,7 +141,7 @@ const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFor
       if (draftKey) sessionStorage.removeItem(draftKey)
       onClose()
     } catch (error) {
-      console.error('Client requirement save failed:', error); alert(`Не удалось сохранить заявку: ${getErrorMessage(error, 'проверьте подключение и повторите')}`)
+      console.error('Client requirement save failed:', error); setSaveError(`Не удалось сохранить заявку: ${getErrorMessage(error, 'проверьте подключение и повторите')}`)
     }
   }
 
@@ -149,6 +150,7 @@ const BuyerForm = ({ isOpen, onClose, buyer, defaultPurpose = 'sale' }: BuyerFor
 
   return <Modal isOpen={isOpen} onClose={onClose} title={buyer ? 'Редактировать заявку' : form.purpose === 'rent' ? 'Новая заявка арендатора' : 'Новая заявка покупателя'}>
     <form onSubmit={handleSubmit}>
+        {saveError&&<p role="alert" className="mb-3 rounded-xl border border-red-500/30 p-3 text-sm text-red-400">{saveError}</p>}
 <DuplicateContactWarning phone={form.phone} exceptId={buyer?.id}/>
       <div className="mb-6 flex gap-2 overflow-x-auto border-b border-gray-200 pb-3">{tabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" onClick={() => setSection(tab.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium ${section === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}><Icon className="h-4 w-4" />{tab.label}</button> })}</div>
       <div className="min-h-[430px] space-y-5">

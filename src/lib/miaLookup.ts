@@ -1,3 +1,4 @@
+import {currentArchiveReason} from './archiveReason'
 import {calendarParts} from './scheduling'
 import {businessMetrics} from './businessAccounting'
 import {supabase} from './supabase'
@@ -15,13 +16,13 @@ export async function miaLookup(userId:string,lookup:Lookup){
  const related=(r:Row)=>!lookup.clientId||r.client_id===lookup.clientId||r.related_client_id===lookup.clientId||(r.smart_criteria as Row)?.clientId===lookup.clientId
  let rows:Row[]=[]
  if(lookup.entity==='owners')rows=(await miaOwnerOverview(userId)).filter(r=>matches(JSON.stringify(r)))
- else if(lookup.entity==='contacts')rows=(await read('clients')).filter(r=>!r.merged_into&&matches([r.first_name,r.last_name,r.middle_name,r.phone].join(' '))).map(r=>({id:r.id,name:[r.first_name,r.last_name,r.middle_name].filter(Boolean).join(' '),role:r.type,status:r.status,phone:r.phone,notes:r.contact_comment||r.description}))
- else if(lookup.entity==='properties')rows=(await read('properties')).filter(r=>matches(String(r.address))).map(r=>({id:r.id,address:r.address,status:r.status,ownerId:r.owner_id,price:r.price,listingType:r.listing_type,workStream:r.work_stream}))
+ else if(lookup.entity==='contacts')rows=(await read('clients')).filter(r=>!r.merged_into&&matches([r.first_name,r.last_name,r.middle_name,r.phone].join(' '))).map(r=>({id:r.id,name:[r.first_name,r.last_name,r.middle_name].filter(Boolean).join(' '),role:r.type,status:r.status,archived_at:r.archived_at,phone:r.phone,notes:r.contact_comment||r.description}))
+ else if(lookup.entity==='properties')rows=(await read('properties')).filter(r=>matches(String(r.address))).map(r=>({id:r.id,address:r.address,status:r.status,archived_at:r.archived_at,ownerId:r.owner_id,price:r.price,listingType:r.listing_type,workStream:r.work_stream}))
  else if(lookup.entity==='deals')rows=(await fetchDeals(userId)).filter(r=>(!lookup.propertyId||r.propertyId===lookup.propertyId)&&(!lookup.clientId||[...(r.ownerIds||[]),...(r.buyerIds||[])].includes(lookup.clientId))&&matches(JSON.stringify(r))) as unknown as Row[]
  else if(lookup.entity==='tasks')rows=(await read('tasks')).filter(r=>related(r)&&(!(lookup.from||lookup.to)||during(r.due_date))&&(!lookup.propertyId||(r.smart_criteria as Row)?.propertyId===lookup.propertyId)&&matches(String(r.title)+' '+String(r.description))).map(r=>({id:r.id,title:r.title,notes:r.description,date:r.due_date,time:r.due_time,status:r.status,priority:r.priority}))
  else if(lookup.entity==='events'||lookup.entity==='activities')rows=(await read(lookup.entity==='events'?'events':'crm_activities')).filter(r=>related(r)&&(!(lookup.from||lookup.to)||during(r.event_date||r.occurred_at))&&(!lookup.propertyId||r.property_id===lookup.propertyId||r.related_property_id===lookup.propertyId)&&matches(String(r.title)+' '+String(r.notes))).map(r=>({id:r.id,title:r.title,notes:r.notes,date:r.event_date||r.occurred_at,type:r.type,status:r.status}))
  else if(lookup.entity==='trash'){rows=(await Promise.all(['clients','properties','tasks','events','crm_activities','deals'].map(async table=>{const result=await fetchAllRows(()=>supabase.from(table).select('*').eq('user_id',userId).not('deleted_at','is',null).setHeader('x-lumicrm-network-only','true'));return result.data.map(r=>({id:r.id,entity:({clients:'contact',properties:'property',tasks:'task',events:'event',crm_activities:'activity',deals:'deal'} as Record<string,string>)[table],name:r.title||r.address||[r.first_name,r.last_name].filter(Boolean).join(' '),deletedAt:r.deleted_at}))}))).flat().filter(r=>matches(String(r.name)))}
- else if(lookup.entity==='archive'){rows=(await Promise.all(['clients','properties'].map(async table=>(await read(table)).filter(r=>r.status==='archived'||r.status==='sold').map(r=>({id:r.id,entity:table==='clients'?'contact':'property',name:r.address||[r.first_name,r.last_name].join(' '),status:r.status}))))).flat().filter(r=>matches(String(r.name)))}
+ else if(lookup.entity==='archive'){rows=(await Promise.all(['clients','properties'].map(async table=>(await read(table)).filter(r=>r.status==='archived'||r.status==='sold').map(r=>({id:r.id,entity:table==='clients'?'contact':'property',name:r.address||[r.first_name,r.last_name].join(' '),status:r.status,archived_at:r.archived_at}))))).flat().filter(r=>matches(String(r.name)))}
  else if(lookup.entity==='history'||lookup.entity==='analytics'){
   const [events,activities,tasks]=await Promise.all(['events','crm_activities','tasks'].map(read))
   const entries=buildWorkHistory(events,activities,tasks).filter(r=>(!lookup.clientId||r.clientId===lookup.clientId)&&(!lookup.propertyId||r.propertyId===lookup.propertyId)&&during(r.date)&&matches(r.title+' '+r.notes))
@@ -34,6 +35,7 @@ export async function miaLookup(userId:string,lookup:Lookup){
   }
   rows=entries.map(r=>({...r,historyId:r.id,id:r.id.split(':').slice(1).join(':'),notes:r.notes.slice(0,1500)}))
  }else throw new Error('Этот поиск пока не поддерживается.')
+ if(['contacts','properties','archive'].includes(lookup.entity||'')&&rows.some(r=>r.status==='archived')){const reasons=await read('crm_activities');rows=rows.map(r=>({...r,archiveReason:currentArchiveReason(r,reasons)}))}
  const offset=Number.isInteger(lookup.offset)&&Number(lookup.offset)>=0?Number(lookup.offset):0
  return {total:rows.length,offset,hasMore:rows.length>offset+20,rows:rows.slice(offset,offset+20)}
 }
@@ -45,6 +47,6 @@ export async function miaOwnerOverview(userId:string){
  return clients.filter(c=>!c.merged_into&&(c.type==='seller'||(Array.isArray(c.roles)&&c.roles.includes('seller')))).map(c=>{
   const owned=properties.filter(p=>p.owner_id===c.id||ownership.some(o=>o.client_id===c.id&&o.property_id===p.id))
   const closed=deals.filter(d=>d.status==='closed'&&(d.owner_id===c.id||owned.some(p=>p.id===d.property_id)))
-  return {id:c.id,name:[c.first_name,c.last_name,c.middle_name].filter(Boolean).join(' '),status:c.status,notes:[c.contact_comment,c.description].filter(Boolean).join(' '),lastContact:c.last_contact_date,properties:owned.map(p=>({id:p.id,address:p.address,status:p.status,workStream:p.work_stream,notes:p.description})),closedDeals:closed.map(d=>({id:d.id,propertyId:d.property_id,status:d.status})),history:activities.filter(a=>a.client_id===c.id).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,5).map(a=>({date:a.occurred_at,notes:a.notes,title:a.title}))}
+  return {id:c.id,name:[c.first_name,c.last_name,c.middle_name].filter(Boolean).join(' '),status:c.status,archiveReason:currentArchiveReason(c,activities),notes:[c.contact_comment,c.description].filter(Boolean).join(' '),lastContact:c.last_contact_date,properties:owned.map(p=>({id:p.id,address:p.address,status:p.status,archiveReason:currentArchiveReason(p,activities),workStream:p.work_stream,notes:p.description})),closedDeals:closed.map(d=>({id:d.id,propertyId:d.property_id,status:d.status})),history:activities.filter(a=>a.client_id===c.id).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,5).map(a=>({date:a.occurred_at,notes:a.notes,title:a.title}))}
  })
 }

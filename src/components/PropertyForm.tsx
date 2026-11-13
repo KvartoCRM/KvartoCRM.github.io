@@ -179,6 +179,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
   const { user } = useAuth()
   const { data: propertyCatalog, saveProperty } = usePropertyCatalog(user?.id)
   const { data: propertyDetails } = usePropertyDetails(user?.id, property?.id, isOpen)
+  const [saveError,setSaveError]=useState('')
   const [section, setSection] = useState('deal')
   const [aiDescription,setAiDescription]=useState(false)
   const [formData, setFormData] = useState<PropertyFormData>(emptyProperty)
@@ -283,19 +284,19 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
   const removeOwnerRow = (key: string) => setOwnerRows(current => current.length > 1 ? current.filter(row => row.key !== key) : [emptyOwnerRow('100')])
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();setSaveError('')
     if (!user) return
     setSaving(true)
     const composedAddress = formData.address.trim() || [details.region, details.locality, details.street, details.houseNumber, details.apartmentNumber && `кв. ${details.apartmentNumber}`].filter(Boolean).join(', ')
     if (!composedAddress) {
-      alert('Укажите адрес объекта')
+      setSaveError('Укажите адрес объекта')
       setSaving(false)
       return
     }
 
     const selectedRows = ownerRows.filter(row => row.clientId)
     if (new Set(selectedRows.map(row => row.clientId)).size !== selectedRows.length) {
-      alert('Один собственник выбран несколько раз.')
+      setSaveError('Один собственник выбран несколько раз.')
       setSaving(false)
       return
     }
@@ -308,7 +309,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
     }))
     const shareError = propertyOwnerShareError(owners)
     if (shareError) {
-      alert(shareError)
+      setSaveError(shareError)
       setSaving(false)
       return
     }
@@ -351,7 +352,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
       onClose()
     } catch (error) {
       console.error('Property save failed:', error)
-      alert(`Не удалось сохранить объект: ${error instanceof Error ? error.message : String(error)}`)
+      setSaveError(`Не удалось сохранить объект: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setSaving(false)
     }
@@ -372,6 +373,7 @@ const PropertyForm = ({ isOpen, onClose, property, clients = [] }: PropertyFormP
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={property ? 'Редактировать объект' : 'Новый объект'}>
       <form onSubmit={handleSubmit}>
+        {saveError&&<p role="alert" className="mb-3 rounded-xl border border-red-500/30 p-3 text-sm text-red-400">{saveError}</p>}
         <div className="lumi-border mb-6 flex gap-2 overflow-x-auto border-b pb-3">
           {tabs.map(tab => { const Icon = tab.icon; return (
             <button key={tab.id} type="button" onClick={() => setSection(tab.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${section === tab.id ? 'lumi-accent-bg' : 'lumi-control'}`}>

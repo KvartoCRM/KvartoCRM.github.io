@@ -16,7 +16,11 @@ export class MiaAccount {
     if(!meta.memoryEnabled)return reply({error:'Память отключена.'},409)
     const source=await storage.get('id:'+body.messageId)
     if(!source||source.role!=='user')return reply({error:'Нет исходного сообщения пользователя.'},400)
-    await storage.put('fact:'+source.id,{id:source.id,text:source.text,createdAt:source.createdAt})
+    const old=await storage.get('fact:'+source.id);if(!old){const references=Array.isArray(body.references)?body.references.filter(t=>t&&['contact','property'].includes(t.entity)&&typeof t.id==='string'&&/^[a-f0-9-]{36}$/i.test(t.id)).slice(0,10):[];await storage.put('fact:'+source.id,{id:source.id,text:source.text,createdAt:source.createdAt,references,retired:false})}
+   }else if(body.op==='retire'){
+    if(typeof body.retired!=='boolean'||typeof body.id!=='string')return reply({error:'Неверная запись памяти.'},400)
+    const fact=await storage.get('fact:'+body.id);if(!fact)return reply({error:'Запись памяти не найдена.'},404)
+    await storage.put('fact:'+body.id,{...fact,retired:body.retired})
    }else if(body.op==='forget'){
     if(typeof body.id!=='string'||!/^[a-zA-Z0-9-]{1,100}$/.test(body.id))return reply({error:'Неверная запись памяти.'},400)
     await storage.delete('fact:'+body.id)
@@ -32,7 +36,8 @@ export class MiaAccount {
     const old=await storage.get('id:'+body.id)
     if(old){if(old.text!==body.text||old.role!==body.role)return reply({error:'Сообщение с этим номером уже существует.'},409);return reply(old)}
     if(body.op==='finish'){if(meta.lease?.token!==body.token||meta.lease.until<Date.now()||meta.pending?.id!==body.planId)return reply({error:'Действие уже изменилось. Обновите чат.'},409);meta.pending=null}
-    const row={id:body.id,role:body.role,text:body.text,sequence:++meta.sequence,createdAt:new Date().toISOString()}
+    const receipts=body.op==='finish'&&Array.isArray(body.receipts)?body.receipts.filter(r=>r&&['contact','property','task','event','activity','deal'].includes(r.entity)&&typeof r.id==='string'&&/^[a-f0-9-]{36}$/i.test(r.id)&&typeof r.title==='string').slice(0,10).map(r=>({id:r.id,entity:r.entity,operation:String(r.operation).slice(0,30),title:r.title.slice(0,500),revision:typeof r.revision==='string'?r.revision:undefined})):[]
+    const row={id:body.id,role:body.role,text:body.text,receipts,sequence:++meta.sequence,createdAt:new Date().toISOString()}
     await storage.put('message:'+String(row.sequence).padStart(12,'0'),row);await storage.put('id:'+row.id,row);meta.version=(meta.version||0)+1;await storage.put('meta',meta);return reply(row)
    }else if(body.op==='memory'){
     if(body.revision!==meta.memoryRevision)return reply({error:'Память изменена на другом устройстве. Обновите её перед сохранением.'},409)

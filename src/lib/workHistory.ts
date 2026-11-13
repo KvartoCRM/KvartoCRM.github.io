@@ -60,7 +60,7 @@ export function buildWorkHistory(events: Row[], activities: Row[], tasks: Row[])
     const completed = historyDate(row.completed_at)
     entries.push({id:`task:${row.id}`,kind:'task',title:str(row.title)||'Задача',...(completed.date ? completed : {date:str(row.due_date),time:str(row.due_time).slice(0,5)}),dateNote:completed.date?'Дата выполнения':'Дата выполнения не сохранена; показан плановый срок',notes:str(row.description),outcome:'Выполнена',clientId:str((row.smart_criteria as Row|undefined)?.clientId),propertyId:str((row.smart_criteria as Row|undefined)?.propertyId)})
   }
-  for(const row of liveActivities){if(!['note','message'].includes(str(row.type))||row.status!=='completed')continue;entries.push({id:`activity:${row.id}`,kind:row.type as 'note'|'message',title:str(row.title)||'Заметка',...historyDate(row.occurred_at||row.created_at),notes:str(row.notes),outcome:meta(row).kind==='owner_report'?'Черновик, не отправлен':str(row.outcome),clientId:str(row.client_id),propertyId:str(row.property_id)})}
+  for(const row of liveActivities){if(!['note','message'].includes(str(row.type))||row.status!=='completed')continue;entries.push({id:`activity:${row.id}`,kind:row.type as 'note'|'message',title:str(row.title)||'Заметка',...historyDate(row.occurred_at||row.created_at),notes:str(row.notes),outcome:meta(row).kind==='owner_report'?(meta(row).sent===true?'Отмечен отправленным':'Черновик, не отправлен'):str(row.outcome),clientId:str(row.client_id),propertyId:str(row.property_id)})}
   return entries.sort((a,b)=>`${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)||a.id.localeCompare(b.id))
 }
 export function filterWorkHistory(entries: HistoryEntry[], kind: string, date: string, query: string) {
