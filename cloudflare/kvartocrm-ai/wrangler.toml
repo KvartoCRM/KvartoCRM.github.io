@@ -24,3 +24,6 @@ class_name = "MiaAccount"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["MiaAccount"]
+
+[ai]
+binding = "AI"

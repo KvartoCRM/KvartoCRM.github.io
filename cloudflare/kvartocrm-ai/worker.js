@@ -20,11 +20,11 @@ export async function handleAi(request,env,fetcher=fetch){
  const reply=(body,status=200)=>Response.json(body,{status,headers})
  if(origin&&!ORIGINS.has(origin))return reply({error:'Этот адрес приложения не разрешён.'},403)
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers})
- const cloud=new URL(request.url).pathname==='/mia-cloud'
- if(request.method!=='POST'||(!cloud&&new URL(request.url).pathname!=='/generate'))return reply({error:'Маршрут не найден.'},404)
+ const cloud=new URL(request.url).pathname==='/mia-cloud',transcribe=new URL(request.url).pathname==='/transcribe'
+ if(request.method!=='POST'||(!cloud&&!transcribe&&new URL(request.url).pathname!=='/generate'))return reply({error:'Маршрут не найден.'},404)
  const auth=request.headers.get('authorization')||''
  if(!/^Bearer [A-Za-z0-9._-]+$/.test(auth))return reply({error:'Войдите в CRM.'},401)
- if(!env.DEEPSEEK_API_KEY||!env.SUPABASE_ANON_KEY)return reply({error:'ИИ ещё не подключён на сервере.'},503)
+ if((!transcribe&&!env.DEEPSEEK_API_KEY)||!env.SUPABASE_ANON_KEY)return reply({error:'ИИ ещё не подключён на сервере.'},503)
  try {
  const length=Number(request.headers.get('content-length')||0);if(length>3000000)return reply({error:'Материал слишком большой.'},413)
  const reader=request.body?.getReader(),chunks=[];let size=0
@@ -33,11 +33,13 @@ export async function handleAi(request,env,fetcher=fetch){
  let body;try{body=JSON.parse(raw)}catch{return reply({error:'Неверный формат.'},400)}
  if(body.images!==undefined&&(!Array.isArray(body.images)||body.images.length>3||body.images.some(s=>typeof s!=='string'||s.length>900000||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s))))return reply({error:'Недопустимое изображение.'},400)
  if(body.images?.length&&!['report','description'].includes(body.mode))return reply({error:'Изображения разрешены для отчётов и объявлений.'},400)
- if(!cloud&&!validateInput(body))return reply({error:'Нужен текст до 16 000 символов и допустимый режим.'},400)
+ if(transcribe&&(typeof body.audio!=='string'||body.audio.length<32||body.audio.length>2800000||! /^[A-Za-z0-9+/]+={0,2}$/.test(body.audio)||body.audio.length%4!==0))return reply({error:'Запись пуста или слишком велика. Запишите более короткую заметку.'},400)
+ if(!cloud&&!transcribe&&!validateInput(body))return reply({error:'Нужен текст до 16 000 символов и допустимый режим.'},400)
  const verified=await fetcher(env.SUPABASE_URL+'/auth/v1/user',{headers:{Authorization:auth,apikey:env.SUPABASE_ANON_KEY},signal:AbortSignal.timeout(10000),redirect:'manual'})
  if(!verified.ok)return reply({error:'Сессия истекла. Войдите заново.'},401)
  const user=await verified.json(),allowed=(env.AI_ALLOWED_EMAILS||'').split(',').map(s=>s.trim().toLowerCase())
  if(!user.id||!user.email_confirmed_at||(env.AI_ALL_VERIFIED_USERS!=='true'&&!allowed.includes(String(user.email).toLowerCase())))return reply({error:'ИИ не подключён для этого аккаунта.'},403)
+ if(transcribe){if(!env.AI)return reply({error:'Сервис распознавания ещё не подключён.'},503);try{const result=await env.AI.run('@cf/openai/whisper-large-v3-turbo',{audio:body.audio,language:'ru',task:'transcribe',vad_filter:true});if(typeof result.text!=='string'||!result.text.trim())return reply({error:'Речь не распознана. Поднесите микрофон ближе и повторите.'},422);return reply({text:result.text.trim().slice(0,20000)})}catch{return reply({error:'Сервис распознавания сейчас недоступен. Запись сохранена в этом окне, можно повторить обработку.'},503)}}
  if(cloud){const response=await env.MIA.get(env.MIA.idFromName(user.id)).fetch('https://account/',{method:'POST',body:JSON.stringify(body)});return reply(await response.json(),response.status)}
  const result=await fetcher('https://api.deepseek.com/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+env.DEEPSEEK_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:env.AI_MODEL||'deepseek-flash',thinking:{type:body.mode==='mia'?'enabled':'disabled'},max_tokens:body.mode==='mia'?12000:2400,response_format:{type:'json_object'},messages:[{role:'system',content:base+'\n'+PROMPTS[body.mode]+(body.mode==='mia'?'\n'+miaGuide+'\n'+miaTools:'')},{role:'user',content:body.images?.length?[{type:'text',text:body.context},...body.images.map(url=>({type:'image_url',image_url:{url}}))]:body.context}]}),signal:AbortSignal.timeout(110000),redirect:'manual'})
  if(!result.ok)return reply({error:'DeepSeek временно недоступен или исчерпан баланс. Текст остался в форме.'},502)

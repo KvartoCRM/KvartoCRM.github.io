@@ -27,3 +27,13 @@ test('new verified accounts enabled explicitly; unconfirmed accounts still rejec
  assert.equal((await handleAi(req(),e,f)).status,200)
  assert.equal((await handleAi(req(),e,async()=>Response.json({id:'new-user',email:'new@example.test'}))).status,403)
 })
+
+test('transcription authenticates before invoking hosted speech model and accepts no remote URLs',async()=>{
+ let calls=0;const e={...env,DEEPSEEK_API_KEY:undefined,AI:{run:async(model,input)=>{calls++;assert.equal(model,'@cf/openai/whisper-large-v3-turbo');assert.equal(input.language,'ru');assert.equal(input.vad_filter,true);return {text:'Позвонить Анне в понедельник.'}}}};
+ const make=(audio='YQ=='.repeat(20),authorization='Bearer fixture')=>new Request('https://ai.test/transcribe',{method:'POST',headers:{authorization,origin:'https://kvartocrm.github.io'},body:JSON.stringify({audio})});
+ assert.equal((await handleAi(make('https://internal/audio'),e,provider)).status,400);
+ assert.equal((await handleAi(make('YWFh'.repeat(20),''),e,provider)).status,401);assert.equal(calls,0);
+ const result=await handleAi(make('YWFh'.repeat(20)),e,provider);assert.equal(result.status,200);assert.equal((await result.json()).text,'Позвонить Анне в понедельник.');assert.equal(calls,1);
+ assert.equal((await handleAi(make('YWFh'.repeat(20)),{...e,AI:{run:async()=>({text:''})}},provider)).status,422);
+ const failure=await handleAi(make('YWFh'.repeat(20)),{...e,AI:{run:async()=>{throw Error('provider secret')}}},provider);assert.equal(failure.status,503);assert(!(await failure.text()).includes('provider secret'));
+})
