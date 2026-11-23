@@ -1,3 +1,4 @@
+import { sameQuickCallRow, QuickCallConflictError } from './quickCallConfirmation'
 import {stopCallFollowups} from './callFollowups'
 import { supabase } from './supabase'
 import { quickCallRows, type QuickCallDraft } from './quickCall'
@@ -8,13 +9,14 @@ export async function saveQuickCall(userId: string, draft: QuickCallDraft, relat
   if (result.error && result.error.code !== '23505') throw result.error
   // An uncertain prior response may have committed successfully. Confirm all
   // stable IDs and payloads; never overwrite an already edited appointment.
-  const confirmation = await supabase.from('events').select('*').eq('user_id', userId).in('id', rows.map(row => String(row.id)))
-  if (confirmation.error) throw confirmation.error
-  const exact = rows.every(row => {
-    const saved = confirmation.data?.find(item => item.id === row.id)
-    return saved && !saved.deleted_at && Object.entries(row).every(([key, value]) => key === 'event_time' && value ? String(saved[key]).slice(0,5) === value : saved[key] === value)
-  })
-  if (!exact) throw new Error('Эта запись уже сохранена с другими данными. Проверьте журнал и календарь перед новой записью.')
+  // Read each stable ID directly from the network. A missing/cached response
+  // is not evidence of a conflicting record.
+  const confirmations = await Promise.all(rows.map(row => supabase.from('events').select('*')
+    .eq('user_id', userId).eq('id', String(row.id)).setHeader('x-lumicrm-network-only', 'true').maybeSingle()))
+  for (const response of confirmations) if (response.error) throw response.error
+  if (confirmations.some(response => !response.data)) throw new Error('Не удалось получить подтверждение с сервера. Повторите сохранение с теми же данными: повторный звонок не будет создан.')
+  const existing = confirmations.map(response => response.data!)
+  if (!rows.every((row, index) => sameQuickCallRow(existing[index], row))) throw new QuickCallConflictError(existing)
   await stopCallFollowups(userId,draft.clientId,draft.status,new Date(`${draft.date}T${draft.time}`).toISOString())
   if (completedEventId) {
     const completed = await supabase.from('events').update({ is_completed: true }).eq('id', completedEventId).eq('user_id', userId).select('id').maybeSingle()

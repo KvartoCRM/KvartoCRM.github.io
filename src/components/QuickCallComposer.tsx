@@ -1,3 +1,5 @@
+import { QuickCallConflictError } from '../lib/quickCallConfirmation'
+import { mapCallEventRow } from '../lib/callActivityMapping'
 import VoiceInputButton from './VoiceInputButton'
 import NextStepForm from './NextStepForm'
 import { useEffect, useRef, useState } from 'react'
@@ -23,6 +25,8 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
   })
   const [nextStep,setNextStep]=useState(false)
   const [saving, setSaving] = useState(false)
+  const [conflict,setConflict]=useState<QuickCallConflictError|null>(null)
+  const [confirmSeparate,setConfirmSeparate]=useState(false)
   const [error, setError] = useState('')
   const [closePrompt, setClosePrompt] = useState(false)
   const [durable, setDurable] = useState(true)
@@ -58,7 +62,7 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
     if (submitting.current || !user) return
     const problem = quickCallError(draft)
     if (problem) { setError(problem); return }
-    submitting.current = true; setSaving(true); setError('')
+    submitting.current = true; setSaving(true); setError('');setConflict(null);setConfirmSeparate(false)
     try {
       const person = contact || clients.find(item => item.id === draft.clientId)
       if (draft.clientId && !person) throw new Error('Не удалось загрузить выбранный контакт. Проверьте соединение и повторите.')
@@ -68,7 +72,7 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
       await Promise.all([queryClient.invalidateQueries({queryKey:['work-history',user.id]}),queryClient.invalidateQueries({queryKey:crmQueryKeys.calls(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.events(user.id)}),queryClient.invalidateQueries({queryKey:crmQueryKeys.overview(user.id)})])
       void syncNativeReminders(user.id).catch(() => undefined)
       if(draft.schedule)onClose();else setNextStep(true)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Сохранение не подтверждено. Проверьте соединение и повторите. Данные остались в форме.') }
+    } catch (cause) { if(cause instanceof QuickCallConflictError)setConflict(cause);setError(cause instanceof Error ? cause.message : 'Сохранение не подтверждено. Проверьте соединение и повторите. Данные остались в форме.') }
     finally { submitting.current = false; setSaving(false) }
   }
   if(nextStep)return <NextStepForm afterCompleted context={{clientId:draft.clientId,propertyId:scheduledEvent?.relatedPropertyId,title:`Связаться: ${draft.name}`,kind:'call'}} onClose={onClose}/>
@@ -86,6 +90,12 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
         {draft.schedule && <div className="lumi-panel-muted rounded-xl border p-3"><label className="lumi-text mb-3 block text-sm">Следующий шаг<select aria-label="Следующий шаг" disabled={draft.status === 'Перезвонить'} className={field} value={draft.nextKind || 'call'} onChange={e=>change({nextKind:e.target.value as 'call' | 'meeting'})}><option value="call">Звонок</option><option value="meeting">Встреча / показ</option></select></label><div className="grid grid-cols-2 gap-3"><label className="lumi-text text-sm">Дата<input className={field} type="date" min={localDate()} required value={draft.nextDate} onChange={e => change({nextDate:e.target.value})} /></label><label className="lumi-text text-sm">Время<input className={field} type="time" required value={draft.nextTime} onChange={e => change({nextTime:e.target.value})} /></label></div><p className="lumi-muted mt-2 text-xs">Появится в «Сегодня» в назначенный день. Уведомления зависят от разрешений устройства.</p></div>}
         <details className="lumi-border border-t pt-3"><summary className="lumi-muted cursor-pointer text-sm">Дата, время и тип состоявшегося звонка</summary><div className="mt-3 grid gap-3 sm:grid-cols-3"><label className="lumi-text text-sm">Дата<input type="date" required className={field} value={draft.date} onChange={e => change({date:e.target.value})} /></label><label className="lumi-text text-sm">Время<input type="time" required className={field} value={draft.time} onChange={e => change({time:e.target.value})} /></label><label className="lumi-text text-sm">Тип<select className={field} value={draft.type} onChange={e => change({type:e.target.value as QuickCallDraft['type']})}><option value="warm">Тёплый</option><option value="cold">Холодный</option><option value="inbound">Входящий</option><option value="selection">По подбору</option></select></label></div></details>
       </fieldset>
+      {conflict && <div className="lumi-panel-muted rounded-xl border p-4 space-y-3">
+        <p className="lumi-text text-sm">Под этим черновиком уже есть запись. Сравните её с введённым текстом:</p>
+        {conflict.rows.map(row=>{const call=mapCallEventRow(row);return <div key={String(row.id)} className="lumi-muted text-sm"><strong>{String(row.title||'Звонок')}</strong><p>{call?.occurred_at?new Date(call.occurred_at).toLocaleString('ru-RU'):String(row.event_date||'')}</p><p className="whitespace-pre-wrap">{call?.notes||String(row.notes||'Без заметки')}</p>{!!row.deleted_at&&<p>Запись находится в корзине.</p>}</div>})}
+        <p className="lumi-muted text-sm">Если это тот же разговор, найдите его в «Дела → Звонки» и отредактируйте. Введённый текст остаётся в черновике.</p>
+        {!confirmSeparate?<button type="button" className="lumi-control rounded-xl px-3 py-2" onClick={()=>setConfirmSeparate(true)}>Это другой разговор</button>:<><p className="lumi-text text-sm">Создать отдельную запись с введёнными данными? Существующая запись и её следующий шаг сохранятся.</p><div className="flex flex-wrap gap-2"><button type="button" className="lumi-control rounded-xl px-3 py-2" onClick={()=>{change({id:crypto.randomUUID(),nextId:crypto.randomUUID()});setConflict(null);setError('');setConfirmSeparate(false)}}>Подготовить отдельную запись</button><button type="button" className="lumi-control rounded-xl px-3 py-2" onClick={()=>setConfirmSeparate(false)}>Отмена</button></div></>}
+      </div>}
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 
       <div className="lumi-panel sticky bottom-0 flex flex-wrap justify-end gap-2 border-t py-3"><button type="button" disabled={saving} onClick={close} className="lumi-control rounded-xl px-4 py-2.5">Закрыть</button><button disabled={saving} className="lumi-gradient-button rounded-xl px-5 py-2.5 font-semibold disabled:opacity-50">{saving ? 'Сохраняем…' : draft.schedule ? 'Сохранить и запланировать' : 'Сохранить звонок'}</button></div>

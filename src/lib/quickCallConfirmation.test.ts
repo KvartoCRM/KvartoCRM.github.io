@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {sameQuickCallRow} from './quickCallConfirmation.ts';
+const expected={id:'a',user_id:'u',event_time:'12:30',notes:'kvartocrm-call-v1:{"outcome":"Состоялся","notes":"Обсудили","metadata":{"phone":"123","client_id":"c"}}'};
+test('confirmation accepts PostgreSQL time and equivalent JSON serialization',()=>assert.equal(sameQuickCallRow({...expected,event_time:'12:30:00',notes:'kvartocrm-call-v1:{ "metadata": {"client_id":"c", "phone":"123"}, "notes":"Обсудили", "outcome":"Состоялся"}'},expected),true));
+test('confirmation rejects edits, different accounts, trashed records and malformed notes',()=>{for(const patch of [{user_id:'other'},{event_time:'13:30:00'},{deleted_at:'2026-11-23'},{notes:expected.notes.replace('Обсудили','Изменено')},{notes:'kvartocrm-call-v1:broken'}])assert.equal(sameQuickCallRow({...expected,...patch},expected),false)});
