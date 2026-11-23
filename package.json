@@ -1,7 +1,7 @@
 {
   "name": "kvarto-crm",
   "private": true,
-  "version": "1.10.3",
+  "version": "1.10.4",
   "description": "KvartoCRM — облачный офис для специалистов по недвижимости",
   "author": "KvartoCRM",
   "type": "module",
@@ -19,13 +19,14 @@
     "test:security-db": "node scripts/test-security-migration.mjs",
     "test:gateway": "node --test cloudflare/lumicrm-gateway/worker.test.js",
     "test:service-worker": "node --test scripts/service-worker.test.mjs",
-    "test:security": "npm run test:security-db && npm run test:update-db && npm run test:gateway && npm run test:service-worker && npm audit --omit=dev --audit-level=high && npm run test:ai",
+    "test:security": "npm run test:security-db && npm run test:update-db && npm run test:call-db && npm run test:gateway && npm run test:service-worker && npm audit --omit=dev --audit-level=high && npm run test:ai",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "import:sheets": "node scripts/import-google-sheet.mjs",
     "import:sheets:sql": "node scripts/generate-google-sheet-sql.mjs",
     "test:ai": "node --test cloudflare/kvartocrm-ai/worker.test.js cloudflare/kvartocrm-ai/mia-account.test.js",
-    "test:reminders-db": "node scripts/test-reminder-database.mjs"
+    "test:reminders-db": "node scripts/test-reminder-database.mjs",
+    "test:call-db": "node scripts/test-call-database.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

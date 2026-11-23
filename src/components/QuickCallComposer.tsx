@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { QuickCallConflictError } from '../lib/quickCallConfirmation'
 import { mapCallEventRow } from '../lib/callActivityMapping'
 import VoiceInputButton from './VoiceInputButton'
@@ -26,6 +27,7 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
   const [nextStep,setNextStep]=useState(false)
   const [saving, setSaving] = useState(false)
   const [conflict,setConflict]=useState<QuickCallConflictError|null>(null)
+  const [resetPrompt,setResetPrompt]=useState(false)
   const [confirmSeparate,setConfirmSeparate]=useState(false)
   const [error, setError] = useState('')
   const [closePrompt, setClosePrompt] = useState(false)
@@ -79,7 +81,8 @@ export default function QuickCallComposer({ contact, scheduledEvent, onClose }: 
   const field = 'lumi-control mt-1.5 w-full min-w-0 rounded-xl px-3 py-2.5'
   return <><Modal isOpen onClose={close} title="Итог звонка" closeOnBackdrop={false}>
     <form onSubmit={save} className="space-y-4">
-      <p className="lumi-muted text-sm">Результат разговора и следующий контакт в одной форме.</p>
+      <div className="flex items-center justify-between gap-3"><p className="lumi-muted text-sm">Результат разговора и следующий контакт в одной форме.</p><button type="button" title="Очистить черновик звонка" aria-label="Очистить черновик звонка" disabled={saving} onClick={()=>setResetPrompt(true)} className="lumi-control shrink-0 rounded-xl p-3"><Trash2 className="h-4 w-4"/></button></div>
+      {resetPrompt&&<div className="lumi-panel-muted rounded-xl border p-3"><p className="lumi-text text-sm">Очистить поля и начать новый звонок? Сохранённые звонки и запланированные дела останутся. Если сохранение ранее зависло, сначала проверьте журнал, чтобы не создать повторную запись.</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" className="lumi-control rounded-lg p-2" onClick={()=>{writeAccountValue(key,null);saved.current=false;setDraft({id:crypto.randomUUID(),nextId:crypto.randomUUID(),updatedAt:Date.now(),clientId:contact?.id||scheduledEvent?.relatedClientId||'',name:contact?contactName(contact):scheduledEvent?.title||'',phone:contact?.phone||'',status:'Состоялся',notes:'',date:localDate(),time:new Date().toTimeString().slice(0,5),type:'warm',schedule:false,nextDate:'',nextTime:''});setError('');setConflict(null);setConfirmSeparate(false);setResetPrompt(false)}}>Очистить черновик</button><button type="button" className="lumi-control rounded-lg p-2" onClick={()=>setResetPrompt(false)}>Отмена</button></div></div>}
       {(restored || dirty) && <p className="lumi-muted text-xs" role="status">{durable ? restored ? 'Черновик восстановлен. Хранится на устройстве до 7 дней и удаляется при выходе из аккаунта.' : 'Черновик сохранён на этом устройстве.' : 'Хранилище недоступно. До сохранения в облаке не закрывайте приложение.'}</p>}
       <fieldset disabled={saving} className="space-y-4 disabled:opacity-60">
         <label className="lumi-text block text-sm font-medium">Контакт<select className={field} value={draft.clientId} onChange={e => selectContact(e.target.value)} disabled={Boolean(contact || scheduledEvent?.relatedClientId)}><option value="">Без привязки к контакту</option>{clients.map(person => <option key={person.id} value={person.id}>{contactName(person)} · {person.phone}</option>)}</select></label>

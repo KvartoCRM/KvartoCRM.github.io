@@ -46,3 +46,9 @@ test('call result can schedule a meeting with an explicit device timezone',()=>{
  assert.equal(next.time_zone,Intl.DateTimeFormat().resolvedOptions().timeZone)
  assert.equal(next.related_client_id,draft.clientId)
 })
+
+test('completed call rejects future date while callback can be next January',()=>{
+ const now=new Date('2026-11-23T15:00');
+ assert.match(quickCallError({...draft,date:'2027-01-11'},now),/Состоявшийся звонок не может быть в будущем/)
+ assert.equal(quickCallError({...draft,date:'2026-11-23',time:'14:00',nextDate:'2027-01-11'},now),'')
+})

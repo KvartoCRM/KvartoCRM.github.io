@@ -15,6 +15,7 @@ export function quickCallError(d: QuickCallDraft, now = new Date()) {
   if (!d.name.trim() && !d.phone.trim()) return 'Укажите имя или телефон собеседника.'
   const occurred = new Date(`${d.date}T${d.time}`)
   if (!d.date || !d.time || Number.isNaN(occurred.getTime())) return 'Укажите дату и время звонка.'
+  if (occurred.getTime() > now.getTime() + 60000) return 'Состоявшийся звонок не может быть в будущем. Для повторного звонка используйте «Назначить следующий шаг».'
   const validDate = (value: Date, date: string, time: string) => `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}` === date && value.toTimeString().slice(0,5) === time
   if (!validDate(occurred,d.date,d.time)) return 'Укажите существующую дату и время звонка.'
   if (d.status === 'Перезвонить' && !d.schedule) return 'Назначьте следующий звонок.'

@@ -1,0 +1,24 @@
+import {PGlite} from '@electric-sql/pglite';import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const db=new PGlite(),uid='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',other='dddddddd-dddd-4ddd-8ddd-dddddddddddd',id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',next='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+try{await db.exec(`create role authenticated;create role anon;create schema auth;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create table events(id uuid primary key,user_id uuid,type text check(type in ('call','meeting')),title text,event_date date,event_time time,is_completed boolean,related_client_id uuid,related_client_type text,related_property_id uuid,external_key text,notes text,time_zone text,duration_minutes integer,deleted_at timestamptz);create table tasks(id uuid primary key,user_id uuid,is_completed boolean,status text,deleted_at timestamptz);create table crm_activities(id uuid primary key,user_id uuid,type text,metadata jsonb,external_key text,deleted_at timestamptz);`);
+for(const table of ['events','tasks','crm_activities'])await db.exec(`alter table ${table} enable row level security;create policy own on ${table} for all to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());grant select,insert,update on ${table} to authenticated;`);
+for(const file of ['2026112302_quick_call_receipt.sql','2026112303_history_trash.sql'])await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
+const row={id,user_id:uid,type:'meeting',title:'Test',event_date:'2026-11-23',event_time:null,is_completed:true,related_client_id:null,related_client_type:null,external_key:'call-log:'+id,notes:'kvartocrm-call-v1:{}'};
+const follow={...row,id:next,type:'call',is_completed:false,event_date:'2027-01-11',event_time:'12:00',external_key:'follow-up:'+id,notes:'Next'};
+await db.exec(`set role authenticated;set test.uid='${uid}'`);
+const save=rows=>db.query('select save_quick_call($1::jsonb) result',[JSON.stringify(rows)]);
+await assert.rejects(()=>save([row,{...follow,type:'bad'}]));assert.equal((await db.query('select count(*)::int n from events')).rows[0].n,0);
+let saved=(await save([row,follow])).rows[0].result;assert.equal(saved.length,2);assert.equal(saved.find(r=>r.id===next).event_time,'12:00:00');
+await save([row,follow]);assert.equal((await db.query('select count(*)::int n from events')).rows[0].n,2);
+await assert.rejects(()=>save([{...row,user_id:other}]));
+await db.exec(`set test.uid='${other}'`);assert.equal((await db.query('select trash_history_entry($1) n',['call:'+id])).rows[0].n,0);
+await db.exec(`set test.uid='${uid}'`);assert.equal((await db.query('select trash_history_entry($1) n',['call:'+id])).rows[0].n,1);assert.equal((await db.query('select deleted_at from events where id=$1',[next])).rows[0].deleted_at,null);
+const meeting='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',activity='ffffffff-ffff-4fff-8fff-ffffffffffff';
+await db.query('insert into events(id,user_id,type,is_completed) values($1,$2,$3,true)',[meeting,uid,'meeting']);
+await db.query('insert into crm_activities(id,user_id,type,metadata,external_key) values($1,$2,$3,$4,$5)',[activity,uid,'meeting',JSON.stringify({event_id:meeting}),'meeting-result:'+meeting]);
+assert.equal((await db.query('select trash_history_entry($1) n',['meeting:'+meeting])).rows[0].n,2);
+await db.query('update events set deleted_at=null where id=$1',[meeting]);await db.query('update crm_activities set deleted_at=null where id=$1',[activity]);
+assert.equal((await db.query('select trash_history_entry($1) n',['meeting-result:'+activity])).rows[0].n,2);
+await db.exec('set role anon');await assert.rejects(()=>save([row]));await assert.rejects(()=>db.query('select trash_history_entry($1)',['call:'+id]));
+console.log('CALL_DATABASE_PASS: atomic batch, receipt, retry, tenant isolation, trash preserves future, anonymous denied');
+}finally{await db.close()}

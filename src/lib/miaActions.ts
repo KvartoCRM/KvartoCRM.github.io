@@ -26,6 +26,13 @@ export async function executeMiaCommand(userId:string,command:MiaCommand,operati
  const table=tables[c.entity||'']
  if(['archive','restore','trash'].includes(c.operation)){
   if(!table||!c.id)throw new Error('Укажите запись.');const row=await owned(userId,table,id)
+  if(c.operation==='trash'&&((table==='events'&&(String(row.external_key||'').startsWith('call-log:')||(row.type==='meeting'&&row.is_completed)))||(table==='crm_activities'&&['call','meeting'].includes(String(row.type))))) {
+    const kind=table==='events'?(String(row.external_key||'').startsWith('call-log:')?'call':'meeting'):row.type==='call'?'call':'meeting-result'
+    const result=await supabase.rpc('trash_history_entry',{p_entry_id:kind+':'+id})
+    if(result.error)throw result.error
+    if(typeof result.data!=='number'||(result.data<1&&!row.deleted_at))throw new Error('Удаление не подтверждено. Обновите историю.')
+    return id
+  }
   if(c.operation==='trash')return patch(userId,table,id,{deleted_at:new Date().toISOString()})
   if(c.operation==='restore'&&row.deleted_at)return patch(userId,table,id,{deleted_at:null})
   if(!['clients','properties'].includes(table))throw new Error('Архив доступен контактам и объектам.')

@@ -1,7 +1,10 @@
+import { supabase } from '../lib/supabase'
+import { queryClient } from '../lib/queryClient'
+import { syncNativeReminders } from '../lib/nativeReminders'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useWorkHistory } from '../hooks/useWorkHistory'
 import { Link } from 'react-router-dom'
-import { CalendarDays, CheckCircle2, Phone, RefreshCw, MessageSquare } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Phone, RefreshCw, MessageSquare, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useClientRecords } from '../hooks/useClientRecords'
 import { contactName } from '../lib/contactPresentation'
@@ -13,6 +16,8 @@ const displayDate = (date: string) => date ? new Date(`${date}T12:00:00`).toLoca
 export default function WorkHistory({onClose,clientId,embedded}:{onClose:()=>void;clientId?:string;embedded?:boolean}) {
   const {user}=useAuth(), {data:clients=[]}=useClientRecords(user?.id)
   const [kind,setKind]=useState(''),[date,setDate]=useState(''),[search,setSearch]=useState(''),[limit,setLimit]=useState(30)
+  const [deleting,setDeleting]=useState(''),[pending,setPending]=useState(''),[deleteError,setDeleteError]=useState('')
+  const remove=async(id:string)=>{if(!user||pending)return;setPending(id);setDeleteError('');try{const r=await supabase.rpc('trash_history_entry',{p_entry_id:id});if(r.error)throw r.error;if(typeof r.data!=='number'||r.data<1)throw new Error('Запись не удалена. Обновите историю и повторите.');await queryClient.invalidateQueries();void syncNativeReminders(user.id).catch(()=>undefined);setDeleting('')}catch(e){setDeleteError(e instanceof Error?e.message:'Не удалось удалить запись.')}finally{setPending('')}}
   const query=useWorkHistory(user?.id)
   const entries=useMemo(()=>filterWorkHistory((query.data||[]).filter(row=>!clientId||row.clientId===clientId).map(row=>({...row,contact:row.contact||clients.find(c=>c.id===row.clientId)&&contactName(clients.find(c=>c.id===row.clientId)!)})),kind,date,search),[query.data,clients,kind,date,search,clientId])
   const reset=()=>{setKind('');setDate('');setSearch('');setLimit(30)}
@@ -25,6 +30,7 @@ export default function WorkHistory({onClose,clientId,embedded}:{onClose:()=>voi
         <label className="lumi-text min-w-0 text-sm">Дата<input type="date" value={date} onChange={e=>{setDate(e.target.value);setLimit(30)}} className="lumi-control mt-1 w-full min-w-0 rounded-xl p-3"/></label>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2"><span className="lumi-muted text-xs">{entries.length} записей{!date?' · за всё время':''}</span><div className="flex gap-2">{(kind||date||search)&&<button onClick={reset} className="lumi-accent-text rounded-lg px-3 py-2 text-sm">Сбросить</button>}<button onClick={()=>void query.refetch()} disabled={query.isFetching} className="lumi-control inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm"><RefreshCw className="h-4 w-4"/>Обновить</button></div></div>
+      {deleteError&&<p role="alert" className="text-sm text-red-400">{deleteError}</p>}
       {query.isPending&&<p role="status" className="lumi-muted py-6 text-center">Загружаем историю…</p>}
       {query.isError&&<p role="alert" className="rounded-xl border border-red-500/30 p-4 text-sm text-red-400">Не удалось загрузить полную историю. Нажмите «Обновить», чтобы повторить.{query.data?' Ниже показаны ранее загруженные записи.':''}</p>}
       {!query.isPending&&!query.isError&&!entries.length&&<p className="lumi-muted py-8 text-center">{kind||date||search?'По этим условиям записей нет.':'В истории пока нет завершённых дел.'}</p>}
@@ -40,6 +46,7 @@ export default function WorkHistory({onClose,clientId,embedded}:{onClose:()=>voi
           <p className="lumi-text mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed">{row.notes||'Комментарий не добавлен.'}</p>
           {next.date&&<p className="lumi-muted mt-3 text-sm">Следующий контакт: {displayDate(next.date)} {next.time}</p>}
           {(row.clientId||row.propertyId)&&<div className="mt-3 flex flex-wrap gap-3 text-sm">{row.clientId&&<Link onClick={onClose} to={`/contacts?client=${encodeURIComponent(row.clientId)}`} className="lumi-accent-text py-2">Карточка контакта</Link>}{row.propertyId&&<Link onClick={onClose} to={`/properties/${encodeURIComponent(row.propertyId)}`} className="lumi-accent-text py-2">Объект</Link>}</div>}
+          <div className="mt-3">{deleting===row.id?<div className="space-y-2"><p className="lumi-muted text-sm">Переместить эту запись в корзину? Связанное выполненное дело тоже будет убрано. Будущие задачи и повторные звонки останутся.</p><div className="flex flex-wrap gap-2"><button disabled={!!pending} onClick={()=>void remove(row.id)} className="lumi-control rounded-lg p-2 text-red-400">В корзину</button><button disabled={!!pending} onClick={()=>setDeleting('')} className="lumi-control rounded-lg p-2">Отмена</button></div></div>:<button disabled={!!pending} aria-label={`Удалить запись: ${row.title}`} title="Удалить запись" onClick={()=>{setDeleting(row.id);setDeleteError('')}} className="lumi-control rounded-lg p-2"><Trash2 className="h-4 w-4"/></button>}</div>
         </article></div>})}</div>
       {entries.length>limit&&<button onClick={()=>setLimit(n=>n+30)} className="lumi-control w-full rounded-xl p-3">Показать ещё ({entries.length-limit})</button>}
       {!embedded&&<button onClick={onClose} className="lumi-control w-full rounded-xl p-3">Закрыть</button>}
