@@ -1,3 +1,4 @@
+import { taskReminderOffsets } from './reminderOffsets'
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { supabase } from './supabase'
@@ -10,6 +11,7 @@ type ReminderSource = {
   title: string
   body: string
   route: string
+  offsets: readonly number[]
   dueAt: Date
 }
 
@@ -92,6 +94,7 @@ export const syncNativeReminders = async (userId: string) => {
   const sources: ReminderSource[] = [
     ...(tasksResult.data ?? []).map(task => ({
       sourceType: 'task' as const,
+      offsets: taskReminderOffsets(task.smart_criteria?.reminderOffsets),
       sourceId: task.id,
       title: `Задача: ${task.title}`,
       body: task.description || 'Пришло время выполнить задачу',
@@ -100,6 +103,7 @@ export const syncNativeReminders = async (userId: string) => {
     })),
     ...(eventsResult.data ?? []).map(event => ({
       sourceType: 'event' as const,
+      offsets: OFFSETS,
       sourceId: event.id,
       title: `${event.type === 'call' ? 'Звонок' : 'Встреча'}: ${event.title}`,
       body: event.location || event.notes || 'Запланированное событие KvartoCRM',
@@ -114,7 +118,7 @@ export const syncNativeReminders = async (userId: string) => {
   }
 
   const now = Date.now()
-  const notifications = sources.flatMap(source => OFFSETS.flatMap(minutes => {
+  const notifications = sources.flatMap(source => source.offsets.flatMap(minutes => {
     const at = new Date(source.dueAt.getTime() - minutes * 60_000)
     if (at.getTime() <= now + 1_000) return []
     return [{

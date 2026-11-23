@@ -1,3 +1,4 @@
+import ReminderOptions from '../components/ReminderOptions'
 import NextStepForm, {type StepContext} from '../components/NextStepForm'
 import { useListScroll } from '../hooks/useListScroll'
 import { useListState } from '../hooks/useListState'
@@ -341,6 +342,7 @@ const TasksPage = () => {
             </div>
           </section>
 
+          <ReminderOptions value={smart.reminderOffsets||[]} onChange={reminderOffsets=>setSmart(current=>({...current,reminderOffsets}))} scheduled={!!dueDate&&!!dueTime}/>
           <section className="lumi-panel-muted rounded-2xl border p-4">
             <h3 className="lumi-text font-semibold">Шаблоны</h3>
             <div className="mt-3 flex flex-wrap gap-2">{taskTemplates.map(template => <button key={template.label} type="button" onClick={() => { setTitle(template.title); setQuadrant(template.quadrant); setSmart(template.smart) }} className="lumi-control rounded-xl px-3 py-2 text-sm font-medium">{template.label}</button>)}</div>
