@@ -1,3 +1,4 @@
+import {requireMiaAccess} from './miaCloud'
 import {archiveWithReason} from './archiveWithReason'
 import type {ArchiveReason} from './archiveReason'
 import {stopCallFollowups} from './callFollowups'
@@ -21,6 +22,9 @@ async function owned(userId:string,table:string,id:string){if(!uuid.test(id))thr
 async function patch(userId:string,table:string,id:string,values:Record<string,unknown>){const before=await owned(userId,table,id);let q=supabase.from(table).update(values).eq('user_id',userId).eq('id',id);if(before.updated_at)q=q.eq('updated_at',before.updated_at);const r=await q.select('id').setHeader('x-lumicrm-network-only','true').maybeSingle();if(r.error)throw r.error;if(!r.data)throw new Error('Запись изменилась. Повторите после обновления.');return id}
 export async function executeMiaCommand(userId:string,command:MiaCommand,operationId:string,previousIds:string[],setTheme:(theme:string)=>void,settings?:(fields:Record<string,unknown>)=>Promise<void>){
  const c=structuredClone(command),f=c.fields,id=c.id||operationId
+ const entity=c.operation==='call'?'event':c.operation==='activity'?'activity':c.operation==='task_status'?'task':c.operation==='deal'?'deal':c.entity;
+ const action=['call','activity'].includes(c.operation)?'create':['task_status','deal'].includes(c.operation)?'update':c.operation;
+ await requireMiaAccess(userId,['theme','settings'].includes(c.operation)?['settings']:[entity+'.'+action]);
  for(const key of ['clientId','propertyId','ownerId'])if(typeof f[key]==='string'&&String(f[key]).startsWith('@'))f[key]=previousIds[Number(String(f[key]).slice(1))]
  for(const key of ['clientId','ownerId','propertyId'])if(f[key]){const row=await owned(userId,key==='propertyId'?'properties':'clients',String(f[key]));if(row.deleted_at)throw new Error('Связанная запись в корзине.');if(c.operation==='create'&&row.status==='archived')throw new Error('Связанный контакт или объект в архиве.')}
  const table=tables[c.entity||'']

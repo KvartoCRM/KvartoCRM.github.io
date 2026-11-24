@@ -37,3 +37,13 @@ test('transcription authenticates before invoking hosted speech model and accept
  assert.equal((await handleAi(make('YWFh'.repeat(20)),{...e,AI:{run:async()=>({text:''})}},provider)).status,422);
  const failure=await handleAi(make('YWFh'.repeat(20)),{...e,AI:{run:async()=>{throw Error('provider secret')}}},provider);assert.equal(failure.status,503);assert(!(await failure.text()).includes('provider secret'));
 })
+
+test('Mia uses account style and hosted image recognition, obeys attachment revocation',async()=>{
+ let vision=0,seen;const settings={replyStyle:'Особый стиль',reportStyle:'Только факты',permissions:{attachments:true}};
+ const e={...env,MIA:{idFromName:n=>n,get:()=>({fetch:async()=>Response.json({settings})})},AI:{run:async(model,input)=>{vision++;assert(model.includes('mistral-small'));assert(input.messages[0].content[1].image_url.url.startsWith('data:image/jpeg'));return {response:'На фото красный квадрат'}}}};
+ const f=async(u,o)=>{if(!String(u).includes('/auth/'))seen=JSON.parse(o.body);return provider(u)};
+ assert.equal((await handleAi(req({mode:'mia',context:'Посмотри фото',images:['data:image/jpeg;base64,YQ==']}),e,f)).status,200);
+ assert.equal(vision,1);assert(seen.messages[0].content.includes('Особый стиль'));assert(seen.messages[1].content.includes('красный квадрат'));
+ settings.permissions.attachments=false;
+ assert.equal((await handleAi(req({mode:'mia',context:'Посмотри фото',images:['data:image/jpeg;base64,YQ==']}),e,f)).status,403);assert.equal(vision,1);
+})

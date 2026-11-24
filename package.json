@@ -1,7 +1,7 @@
 {
   "name": "kvarto-crm",
   "private": true,
-  "version": "1.10.4",
+  "version": "1.11.0",
   "description": "KvartoCRM — облачный офис для специалистов по недвижимости",
   "author": "KvartoCRM",
   "type": "module",
@@ -40,6 +40,8 @@
     "electron-updater": "^6.8.9",
     "framer-motion": "^11.11.9",
     "lucide-react": "^0.451.0",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.5.438",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.2",

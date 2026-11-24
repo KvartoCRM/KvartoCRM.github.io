@@ -1,3 +1,4 @@
+import {settingsOperation} from './mia-settings.js'
 // One Durable Object per verified Supabase account. No caller-supplied tenant IDs.
 export class MiaAccount {
  constructor(state){this.state=state}
@@ -5,6 +6,7 @@ export class MiaAccount {
   const body=await request.json()
   return this.state.storage.transaction(async storage=>{
    const meta=await storage.get('meta')||{version:0,sequence:0,preferences:'',memoryEnabled:true,memoryRevision:0,pending:null,lease:null}
+   const handled=await settingsOperation(body,meta,storage);if(handled)return handled
    const reply=(data,status=200)=>Response.json(data,{status})
    if(body.op==='read'){
     const before=Number.isInteger(body.before)?body.before:meta.sequence+1
@@ -37,8 +39,9 @@ export class MiaAccount {
     if(old){if(old.text!==body.text||old.role!==body.role)return reply({error:'Сообщение с этим номером уже существует.'},409);return reply(old)}
     if(body.op==='finish'){if(meta.lease?.token!==body.token||meta.lease.until<Date.now()||meta.pending?.id!==body.planId)return reply({error:'Действие уже изменилось. Обновите чат.'},409);meta.pending=null}
     const receipts=body.op==='finish'&&Array.isArray(body.receipts)?body.receipts.filter(r=>r&&['contact','property','task','event','activity','deal'].includes(r.entity)&&typeof r.id==='string'&&/^[a-f0-9-]{36}$/i.test(r.id)&&typeof r.title==='string').slice(0,10).map(r=>({id:r.id,entity:r.entity,operation:String(r.operation).slice(0,30),title:r.title.slice(0,500),revision:typeof r.revision==='string'?r.revision:undefined})):[]
-    const row={id:body.id,role:body.role,text:body.text,receipts,sequence:++meta.sequence,createdAt:new Date().toISOString()}
-    await storage.put('message:'+String(row.sequence).padStart(12,'0'),row);await storage.put('id:'+row.id,row);meta.version=(meta.version||0)+1;await storage.put('meta',meta);return reply(row)
+    const attachments=[];if(Array.isArray(body.attachments)){if(body.attachments.length>3)return reply({error:'До трёх файлов в сообщении.'},400);for(const id of body.attachments){const f=await storage.get('file:'+id);if(!f||f.messageId&&f.messageId!==body.id)return reply({error:'Вложение недоступно.'},400);if(!meta.settings.permissions.attachments)return reply({error:'Вложения отключены.'},403);attachments.push({id:f.id,name:f.name,mime:f.mime,size:f.size});await storage.put('file:'+id,{...f,messageId:body.id})}}
+    const row={attachments,id:body.id,role:body.role,text:body.text,receipts,sequence:++meta.sequence,createdAt:new Date().toISOString()}
+    await storage.put('message:'+String(row.sequence).padStart(12,'0'),row);await storage.put('id:'+row.id,row);meta.version=(meta.version||0)+1;await storage.put('meta',{...meta,settings:undefined});return reply(row)
    }else if(body.op==='memory'){
     if(body.revision!==meta.memoryRevision)return reply({error:'Память изменена на другом устройстве. Обновите её перед сохранением.'},409)
     if(typeof body.preferences!=='string'||body.preferences.length>4000||typeof body.memoryEnabled!=='boolean')return reply({error:'Недопустимая память.'},400)
@@ -48,7 +51,7 @@ export class MiaAccount {
     if(JSON.stringify(body.value).length>50000)return reply({error:'Слишком много действий.'},400)
     meta.pending=body.value
    }else return reply({error:'Неизвестная операция.'},400)
-   meta.version=(meta.version||0)+1;await storage.put('meta',meta);return reply({ok:true,...meta})
+   meta.version=(meta.version||0)+1;await storage.put('meta',{...meta,settings:undefined});return reply({ok:true,...meta})
   })
  }
 }

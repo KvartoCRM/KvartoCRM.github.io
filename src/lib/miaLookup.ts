@@ -1,3 +1,4 @@
+import {requireMiaAccess} from './miaCloud'
 import {currentArchiveReason} from './archiveReason'
 import {calendarParts} from './scheduling'
 import {businessMetrics} from './businessAccounting'
@@ -9,6 +10,7 @@ import {fetchDeals} from './deals'
 type Row=Record<string,unknown>
 type Lookup={entity?:string;query?:string;clientId?:string;propertyId?:string;from?:string;to?:string;offset?:number}
 export async function miaLookup(userId:string,lookup:Lookup){
+ await requireMiaAccess(userId,(lookup.entity==='contacts'?['contact']:lookup.entity==='properties'?['property']:lookup.entity==='tasks'?['task']:lookup.entity==='events'?['event']:lookup.entity==='activities'?['activity']:lookup.entity==='deals'?['deal']:['contact','property','task','event','activity','deal']).map(e=>e+'.read'))
  const read=async(table:string)=>(await fetchAllRows(()=>supabase.from(table).select('*').eq('user_id',userId).is('deleted_at',null).setHeader('x-lumicrm-network-only','true'))).data as Row[]
  const q=String(lookup.query||'').toLocaleLowerCase('ru').replace(/ё/g,'е').trim()
  const matches=(text:string)=>!q||q.split(/\s+/).every(w=>text.toLocaleLowerCase('ru').replace(/ё/g,'е').includes(w))

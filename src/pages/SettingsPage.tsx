@@ -1,8 +1,9 @@
+import MiaSettingsPanel from '../components/MiaSettingsPanel'
 import { queryClient } from '../lib/queryClient'
 import { readFullArchive, MAX_ARCHIVE_BYTES } from '../lib/fullArchive'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bell, BellRing, Camera, DatabaseBackup, FileJson, LayoutPanelLeft, LockKeyhole, LogOut, Maximize2, Palette, RefreshCw, Save, Settings, Smartphone, Trash2, Upload, UserRound, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, type IconSize, type InterfaceDensity, type NavigationPosition } from '../context/AuthContext'
 import { themeOptions, useTheme } from '../context/ThemeContext'
 import { registerPushSubscription } from '../lib/pushNotifications'
@@ -15,6 +16,9 @@ const SettingsPage = () => {
   const { user, updatePreferences, updateNotificationPreferences, updateUser, changePassword, updateAvatar, removeAvatar, logout, error: authError, clearError } = useAuth()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
+  const settingsLocation=useLocation()
+  const [settingsTab,setSettingsTab]=useState(()=>new URLSearchParams(location.search).get('tab')==='mia'?'mia':'general')
+  useEffect(()=>setSettingsTab(new URLSearchParams(settingsLocation.search).get('tab')==='mia'?'mia':'general'),[settingsLocation.search])
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const backupInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', phone: user?.phone ?? '', position: user?.position ?? 'Риелтор' })
@@ -212,6 +216,8 @@ const SettingsPage = () => {
         <Settings className="lumi-muted h-8 w-8" />
       </div>
 
+      <div role="tablist" aria-label="Раздел настроек" className="flex gap-2">{[['general','Общие'],['mia','Мия']].map(([id,label])=><button key={id} role="tab" aria-selected={settingsTab===id} onClick={()=>{setSettingsTab(id);navigate(id==='mia'?'/settings?tab=mia':'/settings',{replace:true})}} className={settingsTab===id?'lumi-accent-soft rounded-xl p-3':'lumi-control rounded-xl p-3'}>{label}</button>)}</div>
+      {settingsTab==='mia'?<MiaSettingsPanel/>:<>
       {savedMessage && <div className="rounded-xl border border-emerald-700/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">{savedMessage}</div>}
 
       <section id="account" className="lumi-panel scroll-mt-28 rounded-2xl border p-4 sm:p-6">
@@ -339,6 +345,7 @@ const SettingsPage = () => {
         {notificationMessage && <p className="lumi-muted mt-3 text-sm">{notificationMessage}</p>}
       </section>
 
+    </>}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import {recurrenceId} from './recurrenceIdentity'
 export async function importLocalMia(userId:string,current:MiaCloudState){
  const key=(name:string)=>accountKey(userId,name)
  if(readAccountValue(key('mia:cloud-import-v1')))return
+ if((current.historyRevision||0)>0){writeAccountValue(key('mia:cloud-import-v1'),'1');return}
  const old=parseAccountValue<{role:string;text:string}[]>(readAccountValue(key('draft:mia-messages')),[])
  const preferences=parseAccountValue(readAccountValue(key('mia:preferences')),'')
  const pending=parseAccountValue<{id?:string}|null>(readAccountValue(key('draft:mia-pending')),null)
